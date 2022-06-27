@@ -12,7 +12,7 @@ from helpers.config import Config
 
 
 def get_submission_edit_data():
-    config = Config().new
+    config = Config().dest
     _v_, v = get_info_from_deployed_versions()
     data = {
         'asset_uid': config['asset_uid'],
@@ -23,8 +23,8 @@ def get_submission_edit_data():
     return data
 
 
-def get_old_submissions_xml(xml_url):
-    config = Config().old
+def get_src_submissions_xml(xml_url):
+    config = Config().src
     res = requests.get(
         url=xml_url, headers=config['headers'], params=config['params']
     )
@@ -34,14 +34,14 @@ def get_old_submissions_xml(xml_url):
 
 
 def submit_data(xml_sub, _uuid):
-    config = Config().new
+    config = Config().dest
 
     file_tuple = (_uuid, io.BytesIO(xml_sub))
     files = {'xml_submission_file': file_tuple}
 
     # see if there is media to upload with it
     submission_attachments_path = os.path.join(
-        Config.ATTACHMENTS_DIR, Config().old['asset_uid'], _uuid, '*'
+        Config.ATTACHMENTS_DIR, Config().src['asset_uid'], _uuid, '*'
     )
     for file_path in glob.glob(submission_attachments_path):
         filename = os.path.basename(file_path)
@@ -113,7 +113,7 @@ def transfer_submissions(all_submissions_xml, asset_data, quiet):
 
 
 def get_formhub_uuid():
-    config = Config().new
+    config = Config().dest
     res = requests.get(
         url=config['forms_url'],
         headers=config['headers'],
@@ -129,7 +129,7 @@ def get_formhub_uuid():
 
 
 def get_deployed_versions():
-    config = Config().new
+    config = Config().dest
     res = requests.get(
         url=config['assets_url'],
         headers=config['headers'],

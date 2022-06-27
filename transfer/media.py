@@ -12,7 +12,7 @@ from helpers.config import Config
 
 
 def del_media():
-    config = Config().old
+    config = Config().src
     media_path = os.path.join(Config.ATTACHMENTS_DIR, config['asset_uid'])
     if os.path.exists(media_path):
         print('🧹 Cleaning up media (pass `--keep-media` to prevent cleanup).')
@@ -20,7 +20,7 @@ def del_media():
 
 
 def get_media(verbosity=0, chunk_size=1024, throttle=0.1, limit=1000, query=''):
-    config = Config().old
+    config = Config().src
     config.update(
         {
             'params': get_params(limit=limit, query=query),
@@ -37,7 +37,7 @@ def get_media(verbosity=0, chunk_size=1024, throttle=0.1, limit=1000, query=''):
 
 def download_all_media(data_url, stats):
 
-    config = Config().old
+    config = Config().src
 
     data_res = requests.get(
         config['data_url'], headers=config['headers'], params=config['params']
@@ -90,7 +90,7 @@ def download_all_media(data_url, stats):
 
 
 def download_media_file(url, path, stats):
-    config = Config().old
+    config = Config().src
     stream_res = requests.get(url, stream=True, headers=config['headers'])
     if stream_res.status_code != 200:
         if config['verbosity'] == 3:

@@ -13,13 +13,13 @@ class Config(metaclass=Singleton):
 
     def __init__(self, config_file=None):
         self.config_file = config_file or self.DEFAULT_CONFIG_FILE
-        self.old, self.new = self.get_config()
+        self.src, self.dest = self.get_config()
 
     def get_config(self):
         data = self._read_config()
-        old = self._append_additional_config_data(data['old'])
-        new = self._append_additional_config_data(data['new'])
-        return old, new
+        src = self._append_additional_config_data(data['src'])
+        dest = self._append_additional_config_data(data['dest'])
+        return src, dest
 
     def _read_config(self):
         with open(os.path.join(self.BASE_DIR, self.config_file), 'r') as f:
