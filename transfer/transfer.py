@@ -1,85 +1,57 @@
 import glob
-import os
 import io
 import json
+import os
 import requests
 import uuid
 from datetime import datetime
 from xml.etree import ElementTree as ET
 
-from .download_media import get_media
+from .media import get_media, del_media
+from helpers.config import Config
 
 
-def get_config():
-    with open('transfer/config.json', 'r') as f:
-        data = json.loads(f.read())
-    append_additional_config_data(data)
-    return flatten_config(data)
-
-
-def flatten_config(config_data):
-    data = {}
-    for k, v in config_data.items():
-        for kk, vv in v.items():
-            data[f'{kk}_{k}'] = vv
-    return data
-
-
-def append_additional_config_data(data):
-    for k, v in data.items():
-        asset_url = f"{v['kf_url']}/api/v2/assets/{v['asset_uid']}"
-        v.update(
-            {
-                'assets_url': asset_url,
-                'submission_url': f"{v['kc_url']}/api/v1/submissions",
-                'forms_url': f"{v['kc_url']}/api/v1/forms",
-                'headers': {'Authorization': f"Token {v['token']}"},
-                'params': {'format': 'json'},
-                'deployment_url': f'{asset_url}/deployment/',
-                'xml_url': f'{asset_url}/data.xml',
-                'data_url': f'{asset_url}/data',
-            }
-        )
-
-
-def get_submission_edit_data(asset_uid_new, *args, **kwargs):
-    _v_, v = get_info_from_deployed_versions(*args, **kwargs)
+def get_submission_edit_data():
+    config = Config().new
+    _v_, v = get_info_from_deployed_versions()
     data = {
-        'asset_uid': asset_uid_new,
+        'asset_uid': config['asset_uid'],
         'version': v,
         '__version__': _v_,
-        'formhub_uuid': get_formhub_uuid(asset_uid_new, *args, **kwargs),
+        'formhub_uuid': get_formhub_uuid(),
     }
     return data
 
 
-def get_old_submissions_xml(
-    xml_url_old, asset_uid_old, headers_old, params_old, *args, **kwargs
-):
-    res = requests.get(url=xml_url_old, headers=headers_old, params=params_old)
+def get_old_submissions_xml(xml_url):
+    config = Config().old
+    res = requests.get(
+        url=xml_url, headers=config['headers'], params=config['params']
+    )
     if not res.status_code == 200:
         raise Exception('Something went wrong')
     return ET.fromstring(res.text)
 
 
-def submit_data(
-    xml_sub, _uuid, asset_uid_old, submission_url_new, headers_new, *args, **kwargs
-):
-    """
-    Send the XML to kobo!
-    """
+def submit_data(xml_sub, _uuid):
+    config = Config().new
+
     file_tuple = (_uuid, io.BytesIO(xml_sub))
     files = {'xml_submission_file': file_tuple}
 
     # see if there is media to upload with it
-    TMP_DIR = '/tmp'
-    submission_attachments_path = os.path.join(TMP_DIR, asset_uid_old, _uuid.replace('uuid:',''), '*')
+    submission_attachments_path = os.path.join(
+        Config.TEMP_DIR, Config().old['asset_uid'], _uuid, '*'
+    )
     for file_path in glob.glob(submission_attachments_path):
         filename = os.path.basename(file_path)
         files[filename] = (filename, open(file_path, 'rb'))
 
     res = requests.Request(
-        method='POST', url=submission_url_new, files=files, headers=headers_new
+        method='POST',
+        url=config['submission_url'],
+        files=files,
+        headers=config['headers'],
     )
     session = requests.Session()
     res = session.send(res.prepare())
@@ -108,13 +80,11 @@ def update_root_element_tag_and_attrib(e, tag, attrib):
     e.attrib = attrib
 
 
-def transfer_submissions(
-    all_submissions_xml, asset_data, quiet, *args, **kwargs
-):
+def transfer_submissions(all_submissions_xml, asset_data, quiet):
     results = []
     for submission_xml in all_submissions_xml:
         # Use the same UUID so that duplicates are rejected
-        _uuid = submission_xml.find('meta/instanceID').text
+        _uuid = submission_xml.find('meta/instanceID').text.replace('uuid:', '')
 
         new_attrib = {
             'id': asset_data['asset_uid'],
@@ -130,38 +100,40 @@ def transfer_submissions(
             submission_xml, 'formhub/uuid', asset_data['formhub_uuid']
         )
 
-        result = submit_data(
-            ET.tostring(submission_xml), _uuid, *args, **kwargs
-        )
+        result = submit_data(ET.tostring(submission_xml), _uuid)
         if not quiet:
             if result == 201:
-                print(f'{_uuid}:\tSuccess')
+                print(f'✅ {_uuid}')
             elif result == 202:
-                print(f'{_uuid}:\tSkip, UUID exists')
+                print(f'⚠️  {_uuid}')
             else:
-                print(f'{_uuid}:\tFail')
+                print(f'❌ {_uuid}')
         results.append(result)
     return results
 
 
-def get_formhub_uuid(
-    asset_uid_new, headers_new, params_new, forms_url_new, *args, **kwargs
-):
+def get_formhub_uuid():
+    config = Config().new
     res = requests.get(
-        url=forms_url_new, headers=headers_new, params=params_new
+        url=config['forms_url'],
+        headers=config['headers'],
+        params=config['params'],
     )
     if not res.status_code == 200:
         raise Exception('Something went wrong')
     all_forms = res.json()
-    latest_form = [f for f in all_forms if f['id_string'] == asset_uid_new][0]
+    latest_form = [
+        f for f in all_forms if f['id_string'] == config['asset_uid']
+    ][0]
     return latest_form['uuid']
 
 
-def get_deployed_versions(
-    assets_url_new, headers_new, params_new, *args, **kwargs
-):
+def get_deployed_versions():
+    config = Config().new
     res = requests.get(
-        url=assets_url_new, headers=headers_new, params=params_new
+        url=config['assets_url'],
+        headers=config['headers'],
+        params=config['params'],
     )
     if not res.status_code == 200:
         raise Exception('Something went wrong')
@@ -177,11 +149,11 @@ def format_date_string(date_str):
     return f"{date} {time.split('.')[0]}"
 
 
-def get_info_from_deployed_versions(*args, **kwargs):
+def get_info_from_deployed_versions():
     """
     Get the version formats
     """
-    deployed_versions = get_deployed_versions(*args, **kwargs)
+    deployed_versions = get_deployed_versions()
     count = deployed_versions['count']
 
     latest_deployment = deployed_versions['results'][0]
@@ -196,33 +168,27 @@ def print_stats(results):
     success = results.count(201)
     skip = results.count(202)
     fail = total - success - skip
-    print(
-        f'Total attempts: {total}\tTransferred: {success}\tSkipped: {skip}\tFailed: {fail}'
-    )
+    print(f'🧮 {total}\t✅ {success}\t⚠️ {skip}\t❌ {fail}')
 
 
-def main(limit, quiet=False):
-    config = get_config()
-    config.update(
-        {
-            'quiet': quiet,
-        }
-    )
+def main(limit, keep_media=False, quiet=False):
+    config = Config().old
 
-    print('Getting all submission media if it exists')
+    print('📸 Getting all submission media', end=' ', flush=True)
     get_media()
 
-    xml_url_old = config.pop('xml_url_old') + f'?limit={limit}'
+    xml_url_old = config['xml_url'] + f'?limit={limit}'
     all_results = []
-    submission_edit_data = get_submission_edit_data(**config)
+    submission_edit_data = get_submission_edit_data()
 
-    print('Transferring submission data')
+    print('📨 Transferring submission data')
+
     def do_the_stuff(all_results, url=None):
-        parsed_xml = get_old_submissions_xml(xml_url_old=url, **config)
-        submissions = parsed_xml.findall(f'results/{config["asset_uid_old"]}')
+        parsed_xml = get_old_submissions_xml(xml_url=url)
+        submissions = parsed_xml.findall(f'results/{config["asset_uid"]}')
         next_ = parsed_xml.find('next').text
         results = transfer_submissions(
-            submissions, submission_edit_data, **config
+            submissions, submission_edit_data, quiet=quiet
         )
         all_results += results
         if next_ != 'None':
@@ -230,4 +196,8 @@ def main(limit, quiet=False):
 
     do_the_stuff(all_results, xml_url_old)
 
+    if not keep_media:
+        del_media()
+
+    print('✨ Done')
     print_stats(all_results)
