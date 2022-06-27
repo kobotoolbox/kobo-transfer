@@ -13,13 +13,13 @@ from helpers.config import Config
 
 def del_media():
     config = Config().old
-    media_path = os.path.join(Config.TEMP_DIR, config['asset_uid'])
+    media_path = os.path.join(Config.ATTACHMENTS_DIR, config['asset_uid'])
     if os.path.exists(media_path):
         print('🧹 Cleaning up media (pass `--keep-media` to prevent cleanup).')
         shutil.rmtree(media_path)
 
 
-def get_media(verbosity=0, chunk_size=1024, throttle=1, limit=100, query=''):
+def get_media(verbosity=0, chunk_size=1024, throttle=0.1, limit=1000, query=''):
     config = Config().old
     config.update(
         {
@@ -59,7 +59,7 @@ def download_all_media(data_url, stats):
             continue
 
         sub_dir = os.path.join(
-            Config.TEMP_DIR, config['asset_uid'], sub['_uuid']
+            Config.ATTACHMENTS_DIR, config['asset_uid'], sub['_uuid']
         )
         if not os.path.isdir(sub_dir):
             os.makedirs(sub_dir)

@@ -41,7 +41,7 @@ def submit_data(xml_sub, _uuid):
 
     # see if there is media to upload with it
     submission_attachments_path = os.path.join(
-        Config.TEMP_DIR, Config().old['asset_uid'], _uuid, '*'
+        Config.ATTACHMENTS_DIR, Config().old['asset_uid'], _uuid, '*'
     )
     for file_path in glob.glob(submission_attachments_path):
         filename = os.path.basename(file_path)
@@ -169,35 +169,3 @@ def print_stats(results):
     skip = results.count(202)
     fail = total - success - skip
     print(f'🧮 {total}\t✅ {success}\t⚠️ {skip}\t❌ {fail}')
-
-
-def main(limit, keep_media=False, quiet=False):
-    config = Config().old
-
-    print('📸 Getting all submission media', end=' ', flush=True)
-    get_media()
-
-    xml_url_old = config['xml_url'] + f'?limit={limit}'
-    all_results = []
-    submission_edit_data = get_submission_edit_data()
-
-    print('📨 Transferring submission data')
-
-    def do_the_stuff(all_results, url=None):
-        parsed_xml = get_old_submissions_xml(xml_url=url)
-        submissions = parsed_xml.findall(f'results/{config["asset_uid"]}')
-        next_ = parsed_xml.find('next').text
-        results = transfer_submissions(
-            submissions, submission_edit_data, quiet=quiet
-        )
-        all_results += results
-        if next_ != 'None':
-            do_the_stuff(all_results, next_)
-
-    do_the_stuff(all_results, xml_url_old)
-
-    if not keep_media:
-        del_media()
-
-    print('✨ Done')
-    print_stats(all_results)

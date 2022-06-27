@@ -6,12 +6,13 @@ from .singleton import Singleton
 
 
 class Config(metaclass=Singleton):
-    CONFIG_FILE = 'config.json'
     BASE_DIR = pathlib.Path(__file__).resolve().parent.parent
-    TEMP_DIR = '/tmp'
+    DEFAULT_CONFIG_FILE = 'config.json'
+    ATTACHMENTS_DIR = 'attachments'
     REWRITE_DOWNLOAD_URL = True
 
-    def __init__(self):
+    def __init__(self, config_file=None):
+        self.config_file = config_file or self.DEFAULT_CONFIG_FILE
         self.old, self.new = self.get_config()
 
     def get_config(self):
@@ -21,7 +22,7 @@ class Config(metaclass=Singleton):
         return old, new
 
     def _read_config(self):
-        with open(os.path.join(self.BASE_DIR, self.CONFIG_FILE), 'r') as f:
+        with open(os.path.join(self.BASE_DIR, self.config_file), 'r') as f:
             config = json.loads(f.read())
         return config
 
