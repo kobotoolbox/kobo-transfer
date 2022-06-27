@@ -1,6 +1,5 @@
-#!/usr/bin/env python3
-
-import argparse
+import glob
+import os
 import io
 import json
 import requests
@@ -8,9 +7,11 @@ import uuid
 from datetime import datetime
 from xml.etree import ElementTree as ET
 
+from .download_media import get_media
+
 
 def get_config():
-    with open('config.json', 'r') as f:
+    with open('transfer/config.json', 'r') as f:
         data = json.loads(f.read())
     append_additional_config_data(data)
     return flatten_config(data)
@@ -62,13 +63,21 @@ def get_old_submissions_xml(
 
 
 def submit_data(
-    xml_sub, _uuid, submission_url_new, headers_new, *args, **kwargs
+    xml_sub, _uuid, asset_uid_old, submission_url_new, headers_new, *args, **kwargs
 ):
     """
     Send the XML to kobo!
     """
     file_tuple = (_uuid, io.BytesIO(xml_sub))
     files = {'xml_submission_file': file_tuple}
+
+    # see if there is media to upload with it
+    TMP_DIR = '/tmp'
+    submission_attachments_path = os.path.join(TMP_DIR, asset_uid_old, _uuid.replace('uuid:',''), '*')
+    for file_path in glob.glob(submission_attachments_path):
+        filename = os.path.basename(file_path)
+        files[filename] = (filename, open(file_path, 'rb'))
+
     res = requests.Request(
         method='POST', url=submission_url_new, files=files, headers=headers_new
     )
@@ -192,17 +201,22 @@ def print_stats(results):
     )
 
 
-def main(chunk_size, quiet=False):
+def main(limit, quiet=False):
     config = get_config()
     config.update(
         {
             'quiet': quiet,
         }
     )
-    xml_url_old = config.pop('xml_url_old') + f'?limit={chunk_size}'
+
+    print('Getting all submission media if it exists')
+    get_media()
+
+    xml_url_old = config.pop('xml_url_old') + f'?limit={limit}'
     all_results = []
     submission_edit_data = get_submission_edit_data(**config)
 
+    print('Transferring submission data')
     def do_the_stuff(all_results, url=None):
         parsed_xml = get_old_submissions_xml(xml_url_old=url, **config)
         submissions = parsed_xml.findall(f'results/{config["asset_uid_old"]}')
@@ -217,26 +231,3 @@ def main(chunk_size, quiet=False):
     do_the_stuff(all_results, xml_url_old)
 
     print_stats(all_results)
-
-
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(
-        description='A CLI tool to transfer submissions between projects with identical XLSForms'
-    )
-    parser.add_argument(
-        '--chunk-size',
-        '-c',
-        default=30000,
-        type=int,
-        help='Number of submissions included in each chunk for download and upload',
-    )
-    parser.add_argument(
-        '--quiet',
-        '-q',
-        default=False,
-        action='store_true',
-        help='Suppress stdout',
-    )
-    args = parser.parse_args()
-
-    main(quiet=args.quiet, chunk_size=args.chunk_size)
