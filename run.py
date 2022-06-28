@@ -25,15 +25,16 @@ def main(limit, keep_media=False, quiet=False, config_file=None):
     print('📨 Transferring submission data')
 
     def transfer(all_results, url=None):
-        parsed_xml = get_src_submissions_xml(xml_url=url)
-        submissions = parsed_xml.findall(f'results/{config["asset_uid"]}')
-        next_ = parsed_xml.find('next').text
-        results = transfer_submissions(
-            submissions, submission_edit_data, quiet=quiet
-        )
-        all_results += results
-        if next_ != 'None':
-            transfer(all_results, next_)
+        if url is not None:
+            parsed_xml = get_src_submissions_xml(xml_url=url)
+            submissions = parsed_xml.findall(f'results/{config["asset_uid"]}')
+            next_ = parsed_xml.find('next').text
+            results = transfer_submissions(
+                submissions, submission_edit_data, quiet=quiet
+            )
+            all_results += results
+            if next_ != 'None' or next_ is not None:
+                transfer(all_results, next_)
 
     transfer(all_results, xml_url_src)
 
