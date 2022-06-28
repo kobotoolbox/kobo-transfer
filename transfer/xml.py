@@ -101,13 +101,14 @@ def transfer_submissions(all_submissions_xml, asset_data, quiet):
         )
 
         result = submit_data(ET.tostring(submission_xml), _uuid)
+        if result == 201:
+            msg = f'✅ {_uuid}'
+        elif result == 202:
+            msg = f'⚠️  {_uuid}'
+        else:
+            msg = f'❌ {_uuid}'
         if not quiet:
-            if result == 201:
-                print(f'✅ {_uuid}')
-            elif result == 202:
-                print(f'⚠️  {_uuid}')
-            else:
-                print(f'❌ {_uuid}')
+            print(msg)
         results.append(result)
     return results
 
