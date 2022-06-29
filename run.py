@@ -32,7 +32,7 @@ def main(limit, keep_media=False, quiet=False, config_file=None):
             submissions, submission_edit_data, quiet=quiet
         )
         all_results += results
-        if next_ != 'None':
+        if next_ != 'None' and next_ is not None:
             transfer(all_results, next_)
 
     transfer(all_results, xml_url_src)
