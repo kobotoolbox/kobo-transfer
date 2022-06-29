@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 
 import argparse
+import json
+import sys
 
 from helpers.config import Config
 from transfer.media import get_media, del_media
@@ -12,13 +14,20 @@ from transfer.xml import (
 )
 
 
-def main(limit, keep_media=False, quiet=False, config_file=None):
-    config = Config(config_file=config_file).src
+def main(
+    limit, last_failed=False, keep_media=False, quiet=False, config_file=None
+):
+    config = Config(config_file=config_file)
+    config_src = config.src
 
     print('📸 Getting all submission media', end=' ', flush=True)
     get_media()
 
-    xml_url_src = config['xml_url'] + f'?limit={limit}'
+    xml_url_src = config_src['xml_url'] + f'?limit={limit}'
+
+    if last_failed and config.last_failed_uuids:
+        xml_url_src += f'&query={json.dumps(config.data_query)}'
+
     all_results = []
     submission_edit_data = get_submission_edit_data()
 
@@ -26,7 +35,7 @@ def main(limit, keep_media=False, quiet=False, config_file=None):
 
     def transfer(all_results, url=None):
         parsed_xml = get_src_submissions_xml(xml_url=url)
-        submissions = parsed_xml.findall(f'results/{config["asset_uid"]}')
+        submissions = parsed_xml.findall(f'results/{config_src["asset_uid"]}')
         next_ = parsed_xml.find('next').text
         results = transfer_submissions(
             submissions, submission_edit_data, quiet=quiet
@@ -56,6 +65,13 @@ if __name__ == '__main__':
         help='Number of submissions included in each batch for download and upload.',
     )
     parser.add_argument(
+        '--last-failed',
+        '-lf',
+        default=False,
+        action='store_true',
+        help='Run transfer again with only last failed submissions.',
+    )
+    parser.add_argument(
         '--config-file',
         '-c',
         default='config.json',
@@ -78,9 +94,15 @@ if __name__ == '__main__':
     )
     args = parser.parse_args()
 
-    main(
-        limit=args.limit,
-        keep_media=args.keep_media,
-        quiet=args.quiet,
-        config_file=args.config_file,
-    )
+    try:
+        main(
+            limit=args.limit,
+            last_failed=args.last_failed,
+            keep_media=args.keep_media,
+            quiet=args.quiet,
+            config_file=args.config_file,
+        )
+    except KeyboardInterrupt:
+        print('🛑 Stopping run')
+        # Do something here so we can pick up again where this leaves off
+        sys.exit()

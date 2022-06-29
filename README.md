@@ -21,7 +21,7 @@ git clone https://github.com/kobotoolbox/kobo-transfer
 ## Usage
 
 ```bash
-python3 run.py [--config-file/-c] [--limit/-l] [--keep-media/-k] [--quiet/-q]
+python3 run.py [--config-file/-c] [--limit/-l] [--last-failed/-lf] [--keep-media/-k] [--quiet/-q]
 ```
 
 The original UUID for each submission is maintained across the transfer,
@@ -37,6 +37,10 @@ The `--limit` option can be set to restrict the number of submissions processed
 in a batch. For large projects, either in number of submissions or number of
 questions or both, it may be necessary to reduce the limit below the default of
 30000 to mitigate time-outs from the server.
+
+Sometimes transfers will fail for whatever reason. A list of failed UUIDs is
+stored in `.log/failures.txt` after each run. You can run the transfer again
+with only these failed submissions by passing the flag `--last-failed`.
 
 If you would like to have a configuration file other than `config.json`, such as
 when different configurations are kept in the directory, then specify the file

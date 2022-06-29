@@ -107,10 +107,16 @@ def transfer_submissions(all_submissions_xml, asset_data, quiet):
             msg = f'⚠️  {_uuid}'
         else:
             msg = f'❌ {_uuid}'
+            log_failure(_uuid)
         if not quiet:
             print(msg)
         results.append(result)
     return results
+
+
+def log_failure(_uuid):
+    with open(Config.FAILURES_LOCATION, 'a') as f:
+        f.write(f'{_uuid}\n')
 
 
 def get_formhub_uuid():
