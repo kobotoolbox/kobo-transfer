@@ -48,8 +48,8 @@ python3 run.py --config-file config-2.json
 
 ## Media attachments
 
-Media attachments are written to the local `attachments/` and follow the tree
-structure of:
+Media attachments are written to the local `attachments/` directory and follow
+the tree structure of:
 
 ```bash
 {asset_uid}
@@ -70,6 +70,7 @@ structure of:
 ## Limitations
 
 - Although submissions will not be duplicated across multiple runs of the
-  script, if the submissions contain attachment files, they are duplicated.
+  script, if the submissions contain attachment files, the files are duplicated
+  on the server.
 - The script does not check if the source and destination projects are identical
   and will transfer submission data regardless.
