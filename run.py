@@ -15,9 +15,14 @@ from transfer.xml import (
 
 
 def main(
-    limit, last_failed=False, keep_media=False, quiet=False, config_file=None
+    limit,
+    last_failed=False,
+    keep_media=False,
+    quiet=False,
+    validate=True,
+    config_file=None,
 ):
-    config = Config(config_file=config_file)
+    config = Config(config_file=config_file, validate=validate)
     config_src = config.src
 
     print('📸 Getting all submission media', end=' ', flush=True)
@@ -79,6 +84,13 @@ if __name__ == '__main__':
         help='Location of config file.',
     )
     parser.add_argument(
+        '--no-validate',
+        '-N',
+        default=False,
+        action='store_true',
+        help='Skip validation of config file.',
+    )
+    parser.add_argument(
         '--keep-media',
         '-k',
         default=False,
@@ -100,6 +112,7 @@ if __name__ == '__main__':
             last_failed=args.last_failed,
             keep_media=args.keep_media,
             quiet=args.quiet,
+            validate=not args.no_validate,
             config_file=args.config_file,
         )
     except KeyboardInterrupt:

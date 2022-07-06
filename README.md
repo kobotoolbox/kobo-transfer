@@ -21,7 +21,9 @@ git clone https://github.com/kobotoolbox/kobo-transfer
 ## Usage
 
 ```bash
-python3 run.py [--config-file/-c] [--limit/-l] [--last-failed/-lf] [--keep-media/-k] [--quiet/-q]
+python3 run.py \
+  [--config-file/-c] [--limit/-l] [--last-failed/-lf] \
+  [--keep-media/-k] [--no-validate/-N] [--quiet/-q]
 ```
 
 The original UUID for each submission is maintained across the transfer,
@@ -49,6 +51,9 @@ path with `--config-file`:
 ```bash
 python3 run.py --config-file config-2.json
 ```
+
+By default, the configuration file will be validated before the transfer is
+attempted. Pass the `--no-validate` flag to skip this step.
 
 ## Media attachments
 

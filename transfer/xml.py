@@ -138,7 +138,7 @@ def get_formhub_uuid():
 def get_deployed_versions():
     config = Config().dest
     res = requests.get(
-        url=config['assets_url'],
+        url=config['asset_url'],
         headers=config['headers'],
         params=config['params'],
     )
