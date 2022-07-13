@@ -18,6 +18,7 @@ def main(
     limit,
     last_failed=False,
     keep_media=False,
+    regenerate=False,
     quiet=False,
     validate=True,
     config_file=None,
@@ -43,7 +44,10 @@ def main(
         submissions = parsed_xml.findall(f'results/{config_src["asset_uid"]}')
         next_ = parsed_xml.find('next').text
         results = transfer_submissions(
-            submissions, submission_edit_data, quiet=quiet
+            submissions,
+            submission_edit_data,
+            quiet=quiet,
+            regenerate=regenerate,
         )
         all_results += results
         if next_ != 'None' and next_ is not None:
@@ -84,6 +88,13 @@ if __name__ == '__main__':
         help='Location of config file.',
     )
     parser.add_argument(
+        '--regenerate-uuids',
+        '-R',
+        default=False,
+        action='store_true',
+        help='Regenerate submission UUIDs.',
+    )
+    parser.add_argument(
         '--no-validate',
         '-N',
         default=False,
@@ -110,6 +121,7 @@ if __name__ == '__main__':
         main(
             limit=args.limit,
             last_failed=args.last_failed,
+            regenerate=args.regenerate_uuids,
             keep_media=args.keep_media,
             quiet=args.quiet,
             validate=not args.no_validate,
