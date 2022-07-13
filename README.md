@@ -23,12 +23,14 @@ git clone https://github.com/kobotoolbox/kobo-transfer
 ```bash
 python3 run.py \
   [--config-file/-c] [--limit/-l] [--last-failed/-lf] \
-  [--keep-media/-k] [--no-validate/-N] [--quiet/-q]
+  [--keep-media/-k] [--regenerate-uuids/-R] [--no-validate/-N] [--quiet/-q]
 ```
 
 The original UUID for each submission is maintained across the transfer,
 allowing for duplicate submissions to be rejected at the destination project if
-the script is run multiple times.
+the script is run multiple times. If this behaviour is not desired, pass the
+`--regenerate-uuids` flag to create new UUIDs for each submission. This may be
+necessary when transferring submissions to a project located on the same server.
 
 If submissions contain media attachments, all media will be downloaded to a
 local `attachments/` directory before the transfer between projects begin.

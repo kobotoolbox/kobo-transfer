@@ -33,7 +33,7 @@ def get_src_submissions_xml(xml_url):
     return ET.fromstring(res.text)
 
 
-def submit_data(xml_sub, _uuid):
+def submit_data(xml_sub, _uuid, original_uuid):
     config = Config().dest
 
     file_tuple = (_uuid, io.BytesIO(xml_sub))
@@ -41,7 +41,7 @@ def submit_data(xml_sub, _uuid):
 
     # see if there is media to upload with it
     submission_attachments_path = os.path.join(
-        Config.ATTACHMENTS_DIR, Config().src['asset_uid'], _uuid, '*'
+        Config.ATTACHMENTS_DIR, Config().src['asset_uid'], original_uuid, '*'
     )
     for file_path in glob.glob(submission_attachments_path):
         filename = os.path.basename(file_path)
@@ -80,11 +80,28 @@ def update_root_element_tag_and_attrib(e, tag, attrib):
     e.attrib = attrib
 
 
-def transfer_submissions(all_submissions_xml, asset_data, quiet):
+def generate_new_instance_id() -> (str, str):
+    """
+    Returns:
+        - Generated uuid
+        - Formatted uuid for OpenRosa xml
+    """
+    _uuid = str(uuid.uuid4())
+    return _uuid, f'uuid:{_uuid}'
+
+
+def transfer_submissions(all_submissions_xml, asset_data, quiet, regenerate):
     results = []
     for submission_xml in all_submissions_xml:
         # Use the same UUID so that duplicates are rejected
-        _uuid = submission_xml.find('meta/instanceID').text.replace('uuid:', '')
+        original_uuid = submission_xml.find('meta/instanceID').text.replace(
+            'uuid:', ''
+        )
+        if regenerate:
+            _uuid, formatted_uuid = generate_new_instance_id()
+            submission_xml.find('meta/instanceID').text = formatted_uuid
+        else:
+            _uuid = original_uuid
 
         new_attrib = {
             'id': asset_data['asset_uid'],
@@ -100,7 +117,7 @@ def transfer_submissions(all_submissions_xml, asset_data, quiet):
             submission_xml, 'formhub/uuid', asset_data['formhub_uuid']
         )
 
-        result = submit_data(ET.tostring(submission_xml), _uuid)
+        result = submit_data(ET.tostring(submission_xml), _uuid, original_uuid)
         if result == 201:
             msg = f'✅ {_uuid}'
         elif result == 202:
