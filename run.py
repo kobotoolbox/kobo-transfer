@@ -3,6 +3,8 @@
 import argparse
 import json
 import sys
+from glob import glob
+from xml.etree import ElementTree as ET
 
 from helpers.config import Config
 from transfer.media import get_media, del_media
@@ -26,23 +28,35 @@ def main(
     config = Config(config_file=config_file, validate=validate)
     config_src = config.src
 
-    print('📸 Getting all submission media', end=' ', flush=True)
-    get_media()
+    xml_url_src = None
+    if 'path' not in config_src:
+        print('📸 Getting all submission media', end=' ', flush=True)
+        get_media()
 
-    xml_url_src = config_src['xml_url'] + f'?limit={limit}'
-
-    if last_failed and config.last_failed_uuids:
-        xml_url_src += f'&query={json.dumps(config.data_query)}'
+        xml_url_src = config_src['xml_url'] + f'?limit={limit}'
+        if last_failed and config.last_failed_uuids:
+            xml_url_src += f'&query={json.dumps(config.data_query)}'
 
     all_results = []
     submission_edit_data = get_submission_edit_data()
 
     print('📨 Transferring submission data')
 
+    def get_local_submissions():
+        subs = []
+        for f in glob(f"{config_src['path']}/*/instances/{config_src['form_title']}*/*.xml"):
+            with open(f, 'r') as ff:
+                subs.append(ET.fromstring(ff.read()))
+        return subs
+
     def transfer(all_results, url=None):
-        parsed_xml = get_src_submissions_xml(xml_url=url)
-        submissions = parsed_xml.findall(f'results/{config_src["asset_uid"]}')
-        next_ = parsed_xml.find('next').text
+        next_ = None
+        if url is None:
+            submissions = get_local_submissions()
+        else:
+            parsed_xml = get_src_submissions_xml(xml_url=url)
+            submissions = parsed_xml.findall(f'results/{config_src["asset_uid"]}')
+            next_ = parsed_xml.find('next').text
         results = transfer_submissions(
             submissions,
             submission_edit_data,
@@ -55,7 +69,7 @@ def main(
 
     transfer(all_results, xml_url_src)
 
-    if not keep_media:
+    if not keep_media and 'path' not in config_src:
         del_media()
 
     print('✨ Done')

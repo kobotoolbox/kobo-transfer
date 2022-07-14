@@ -39,13 +39,14 @@ def submit_data(xml_sub, _uuid, original_uuid):
     file_tuple = (_uuid, io.BytesIO(xml_sub))
     files = {'xml_submission_file': file_tuple}
 
-    # see if there is media to upload with it
-    submission_attachments_path = os.path.join(
-        Config.ATTACHMENTS_DIR, Config().src['asset_uid'], original_uuid, '*'
-    )
-    for file_path in glob.glob(submission_attachments_path):
-        filename = os.path.basename(file_path)
-        files[filename] = (filename, open(file_path, 'rb'))
+    if 'path' not in Config().src:
+        # see if there is media to upload with it
+        submission_attachments_path = os.path.join(
+            Config.ATTACHMENTS_DIR, Config().src['asset_uid'], original_uuid, '*'
+        )
+        for file_path in glob.glob(submission_attachments_path):
+            filename = os.path.basename(file_path)
+            files[filename] = (filename, open(file_path, 'rb'))
 
     res = requests.Request(
         method='POST',

@@ -29,7 +29,10 @@ class Config(metaclass=Singleton):
 
     def get_config(self):
         data = self._read_config()
-        src = self._append_additional_config_data(data['src'])
+        if 'path' not in data['src']:
+            src = self._append_additional_config_data(data['src'])
+        else:
+            src = data['src']
         dest = self._append_additional_config_data(data['dest'])
         return src, dest
 
