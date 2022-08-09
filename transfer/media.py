@@ -39,8 +39,9 @@ def download_all_media(data_url, stats):
 
     config = Config().src
 
+    data_url = data_url or config['data_url']
     data_res = requests.get(
-        config['data_url'], headers=config['headers'], params=config['params']
+        data_url, headers=config['headers'], params=config['params']
     )
     if data_res.status_code != 200:
         return stats
