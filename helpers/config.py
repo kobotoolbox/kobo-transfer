@@ -68,7 +68,7 @@ class Config(metaclass=Singleton):
             'submission_url': f'{api_v1}/submissions',
             'forms_url': f'{api_v1}/forms',
             'headers': {'Authorization': f"Token {data['token']}"},
-            'params': {'format': 'json'},
+            'params': {'format': 'json', 'limit': '999999999'},
             'deployment_url': f'{asset_url}/deployment/',
             'xml_url': f'{asset_url}/data.xml',
             'data_url': f'{asset_url}/data',
