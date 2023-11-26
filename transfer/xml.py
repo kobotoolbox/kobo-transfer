@@ -1,4 +1,5 @@
 import glob
+import string
 import io
 import json
 import os
@@ -7,9 +8,142 @@ import uuid
 from datetime import datetime
 from xml.etree import ElementTree as ET
 
+
+import openpyxl
+import xml.etree.ElementTree as ET
+
+import pandas as pd
+from datetime import datetime, timedelta
+import pytz
+from dateutil import parser
+
+
 from .media import get_media, del_media
 from helpers.config import Config
 
+
+def fix_time(google_time):
+    #"2023/11/13 4:20:37 pm CET" google time format
+    #2023-11-13T16:33:59.551+01:00 kobo format
+    dt = parser.parse(google_time)
+    kobo_format = "%Y-%m-%dT%H:%M:%S.%f"
+
+   # ("%Y-%m-%dT%H:%M:%S.%f")[:-3] + dt.strftime("%z")
+
+    #[-3] because seems like kobo only goes to miliseconds .551
+    converted_time = dt.strftime(kobo_format)[:-3] + dt.strftime("%z") 
+    converted_time = converted_time[:-2] + ":" + converted_time[-2:]
+    return converted_time
+
+def xls_to_xml(excel_file_path, xml_file_path, submission_data):
+    # Load the Excel workbook
+    workbook = openpyxl.load_workbook(excel_file_path)
+
+    # Select the default sheet (usually named 'Sheet1')
+    sheet = workbook.active
+
+    uid = submission_data["asset_uid"]
+    formhubuuid = submission_data["formhub_uuid"]
+    v = submission_data["version"]
+    __version__ = submission_data["__version__"]
+
+    root = ET.Element("root") # Create the root element for the XML tree
+    results = ET.Element("results")
+   
+    headers = [cell.value for cell in sheet[1]]
+    for i in range(len(headers)): 
+        if (headers[i] == "Timestamp"): 
+            headers[i] = "end"
+        headers[i] =  headers[i].rstrip(string.punctuation)
+        headers[i] = headers[i].replace(" ", "_")
+
+    num_results = 0
+
+    NSMAP = {"xmlns:jr" :  'http://openrosa.org/javarosa',
+         "xmlns:orx" : 'http://openrosa.org/xforms', 
+         "id" : str(uid),
+         "version" : str(v)}
+
+    # Iterate through rows and columns to populate XML
+    for row in sheet.iter_rows(min_row=2, values_only=True):
+
+        # Assuming the first column contains unique identifiers
+        #seems like we dont need IDs tho??
+        #identifier = str(row[0]) #these are IDs
+
+         # create formhub element with nested uuid
+         # fhub_el = ET.SubElement(root, "formhub")
+         # kc_uuid_el = ET.SubElement(fhub_el, "uuid")
+         # kc_uuid_el.text = KC_ID
+        _uid = ET.Element(uid, NSMAP)
+        fhub_el = ET.SubElement(_uid, "formhub") 
+        uuid_el = ET.SubElement(fhub_el, "uuid") #what?????
+        uuid_el.text = formhubuuid
+
+        #create the start element first because it is always blank
+        start_element = ET.Element("start")
+        _uid.append(start_element)
+
+        # Iterate through cells in the row and create corresponding XML elements
+        for col_num, cell_value in enumerate(row, start=1):
+                col_name = headers[col_num-1]
+                cell_element = ET.SubElement(_uid, col_name)
+                if (col_name == "end"): 
+                    cell_element.text = fix_time(str(cell_value))
+                else: 
+                    cell_element.text = str(cell_value).lower() #seems like kobo makes everything lower but check again
+                   
+                    #if cell_element is a multiple select question, not seperated by ; but a space
+                    #TODO how to ensure that u don't get rid of ; that are typed..
+                    cell_element.text = cell_element.text.replace(";", " ")
+
+
+        #so this version is actually diff from the version in the NSMAP
+        version = ET.Element("__version__")
+        version.text = (__version__)
+        _uid.append(version)
+
+        """meta tag before this ends
+          <meta>
+                <instanceID>uuid:a0ea37ef-ac71-434b-93b6-1713ef4c367f</instanceID>
+            </meta>
+        }"""
+        meta = ET.Element("meta")
+        instanceId = ET.SubElement(meta, "instanceID") 
+        _uuid, formatted_uuid = generate_new_instance_id() #generate with josh function
+        instanceId.text = formatted_uuid
+        
+        _uid.append(meta)
+
+        results.append(_uid)
+        
+        #todo check for nonempty rows before adding
+        num_results += 1
+
+    
+    count =  ET.SubElement(root, 'count')
+    count.text = (str(num_results)) #this should be number of resopnses instead (not 2)
+
+    next = ET.SubElement(root, 'next')
+    next.text = ("None") #need to figure out what next is supposed to be
+
+    previous = ET.SubElement(root, 'previous')
+    previous.text = ("None") #need to figure out
+
+    root.append(results)
+
+    # Create an ElementTree object from the root element
+    tree = ET.ElementTree(root)
+
+    workbook.close()
+
+    return root
+     #Write the XML tree to a file
+    #tree.write(xml_file_path)
+
+"""
+josh methods start here
+"""
 
 def get_submission_edit_data():
     config = Config().dest
@@ -93,7 +227,12 @@ def generate_new_instance_id() -> (str, str):
 def transfer_submissions(all_submissions_xml, asset_data, quiet, regenerate):
     results = []
     for submission_xml in all_submissions_xml:
+
         # Use the same UUID so that duplicates are rejected
+        #TODO currently this is not working for me
+        # i think this makes sense because uuid is regenerated every time.. 
+        #how do i make it so that its not... 
+
         original_uuid = submission_xml.find('meta/instanceID').text.replace(
             'uuid:', ''
         )
@@ -116,7 +255,6 @@ def transfer_submissions(all_submissions_xml, asset_data, quiet, regenerate):
         update_element_value(
             submission_xml, 'formhub/uuid', asset_data['formhub_uuid']
         )
-
         result = submit_data(ET.tostring(submission_xml), _uuid, original_uuid)
         if result == 201:
             msg = f'✅ {_uuid}'

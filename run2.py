@@ -11,6 +11,9 @@ from transfer.xml import (
     get_submission_edit_data,
     print_stats,
     transfer_submissions,
+    xls_to_xml,
+    fix_time
+
 )
 
 
@@ -35,14 +38,68 @@ def main(
         xml_url_src += f'&query={json.dumps(config.data_query)}'
 
     all_results = []
-    submission_edit_data = get_submission_edit_data()
+    submission_edit_data = get_submission_edit_data() 
+
+
+    #so here you have the submission media from the kobo project! slay!
+    #note that to get correct submission data, u need to put into the dest part ?? 
+
+    #now, extract the asset_uid
+    #extract the formhub uuid
+    # call xls_to_xml(excel_file_path, xml_file_path, uid, formhubuuid):
+    
+    excel_file_path = './Filename(google).xlsx' #nice !!! u did good w the google sheet results
+    xml_file_path = './output.xml'
+
+    google_submissions = xls_to_xml(excel_file_path, xml_file_path, submission_edit_data)
+    #submissions = google_submissions.findall(f'results/{config_src["asset_uid"]}') #TODO need to change it from saying config_src tbh
+
+
+    #maybe don't pass in all of the google_submissions
+    #pass in only the submission data
+
+    """
+    next_ = google_submissions.find('next').text #TODO need to figure out what this next_ thing is
+    results = transfer_submissions(
+            google_submissions,
+            submission_edit_data,
+            quiet=quiet,
+            regenerate=regenerate,
+        )
+    all_results += results
+    if next_ != 'None' and next_ is not None:
+        transfer(all_results, next_)
+    #in transfer method
+    #so instead of get_src_submissions
+    #going to get google submission in xml format !!
+    """
+    #so now lets look at transfer_submissions method
+
+    
+    #so don't transfer submission data...
 
     print('📨 Transferring submission data')
+    #test = get_src_submissions_xml(xml_url=xml_url_src)
 
+    """
+    def transfer(all_results):
+        results = transfer_submissions(
+            submissions,
+            submission_edit_data,
+            quiet=quiet,
+            regenerate=regenerate,
+        )
+        all_results += results
+    
+    transfer(all_results)
+    """
+   
     def transfer(all_results, url=None):
-        parsed_xml = get_src_submissions_xml(xml_url=url)
-        submissions = parsed_xml.findall(f'results/{config_src["asset_uid"]}')
-        next_ = parsed_xml.find('next').text
+        #all_results is empty []
+        #url = https://kf.kobotoolbox.org/api/v2/assets/aHr7UdsBV9zctQ6EaiybXx/data.xml?limit=30000
+        #parsed_xml = get_src_submissions_xml(xml_url=url)
+        submissions = google_submissions.findall(f'results/{config_src["asset_uid"]}')
+        next_ = google_submissions.find('next').text
         results = transfer_submissions(
             submissions,
             submission_edit_data,
