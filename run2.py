@@ -16,8 +16,8 @@ from transfer.xml import (
 
 )
 
-
 def main(
+    excel_file,
     limit,
     last_failed=False,
     keep_media=False,
@@ -39,24 +39,14 @@ def main(
 
     all_results = []
     submission_edit_data = get_submission_edit_data() 
-
-
-    #so here you have the submission media from the kobo project! slay!
-    #note that to get correct submission data, u need to put into the dest part ?? 
-
-    #now, extract the asset_uid
-    #extract the formhub uuid
-    # call xls_to_xml(excel_file_path, xml_file_path, uid, formhubuuid):
+    #note that to get correct submission data, u need to put into the dest part 
     
-    excel_file_path = './Filename(google).xlsx' #nice !!! u did good w the google sheet results
+    excel_file_path = excel_file
     xml_file_path = './output.xml'
 
     google_submissions = xls_to_xml(excel_file_path, xml_file_path, submission_edit_data)
-    #submissions = google_submissions.findall(f'results/{config_src["asset_uid"]}') #TODO need to change it from saying config_src tbh
-
-
-    #maybe don't pass in all of the google_submissions
-    #pass in only the submission data
+    #submissions = google_submissions.findall(f'results/{config_src["asset_uid"]}') 
+    #TODO need to change it from saying config_src tbh
 
     """
     next_ = google_submissions.find('next').text #TODO need to figure out what this next_ thing is
@@ -72,28 +62,11 @@ def main(
     #in transfer method
     #so instead of get_src_submissions
     #going to get google submission in xml format !!
-    """
-    #so now lets look at transfer_submissions method
-
-    
-    #so don't transfer submission data...
+    """ 
 
     print('📨 Transferring submission data')
     #test = get_src_submissions_xml(xml_url=xml_url_src)
 
-    """
-    def transfer(all_results):
-        results = transfer_submissions(
-            submissions,
-            submission_edit_data,
-            quiet=quiet,
-            regenerate=regenerate,
-        )
-        all_results += results
-    
-    transfer(all_results)
-    """
-   
     def transfer(all_results, url=None):
         #all_results is empty []
         #url = https://kf.kobotoolbox.org/api/v2/assets/aHr7UdsBV9zctQ6EaiybXx/data.xml?limit=30000
@@ -122,6 +95,13 @@ def main(
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description='A CLI tool to transfer submissions between projects with identical XLSForms.'
+    )
+    parser.add_argument(
+        '--excel-file', 
+        '-ef', 
+        default = './Filename(google).xlsx',
+        type = str, 
+        help = "File path to excel file (xls) with Google Form results"
     )
     parser.add_argument(
         '--limit',
@@ -176,6 +156,7 @@ if __name__ == '__main__':
 
     try:
         main(
+            excel_file=args.excel_file,
             limit=args.limit,
             last_failed=args.last_failed,
             regenerate=args.regenerate_uuids,
