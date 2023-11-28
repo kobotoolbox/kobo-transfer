@@ -28,6 +28,7 @@ def main(
 ):
     config = Config(config_file=config_file, validate=validate)
     config_src = config.src
+    excel = excel_file
 
     print('📸 Getting all submission media', end=' ', flush=True)
     get_media()
@@ -41,9 +42,10 @@ def main(
     submission_edit_data = get_submission_edit_data() 
     #note that to get correct submission data, u need to put into the dest part 
     
-    excel_file_path = excel_file
-    xml_file_path = './output.xml'
 
+     #TODO pass in a argument to specify whether doing file transfer from excel or kobo-kobo
+    excel_file_path = excel
+    xml_file_path = './output.xml'
     google_submissions = xls_to_xml(excel_file_path, xml_file_path, submission_edit_data)
     #submissions = google_submissions.findall(f'results/{config_src["asset_uid"]}') 
     #TODO need to change it from saying config_src tbh
@@ -97,8 +99,8 @@ if __name__ == '__main__':
         description='A CLI tool to transfer submissions between projects with identical XLSForms.'
     )
     parser.add_argument(
-        '--excel-file', 
-        '-ef', 
+        '--excel_file', 
+        '-e', 
         default = './Filename(google).xlsx',
         type = str, 
         help = "File path to excel file (xls) with Google Form results"
