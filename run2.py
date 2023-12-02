@@ -12,8 +12,6 @@ from transfer.xml import (
     print_stats,
     transfer_submissions,
     xls_to_xml,
-    fix_time
-
 )
 
 def main(
@@ -40,9 +38,8 @@ def main(
 
     all_results = []
     submission_edit_data = get_submission_edit_data() 
-    #note that to get correct submission data, u need to put into the dest part 
 
-    xml_file_path = './output.xml' #TODO: remove
+    xml_file_path = './output.xml' #TODO: (for testing purposes)
 
     def transfer(all_results, url=None):
         if (gtransfer):
@@ -58,7 +55,7 @@ def main(
             quiet=quiet,
             regenerate=regenerate,
         )
-        
+
         all_results += results
         if next_ != 'None' and next_ is not None:
             transfer(all_results, next_)
