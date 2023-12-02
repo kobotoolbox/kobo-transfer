@@ -42,6 +42,7 @@ python3 run2.py -g -ef [excel_file_path]
 To run transfer from downloaded google -g flag must be passed. When -g flag is passed, -ef flag is mandatory. File path of the xlsx form downloaded from google sheets can be passed in here. 
 
 ## Limitations
+- assumes that kobo project and google form question types, and order match (does not throw error but transferred submissios will be recorded incorrectly)
 - _submitted_by in Kobo will show username of account running the transfer, for all submissions.
 - submission_time in Kobo will show the time transfer was completed. 'end' shows time of response submission.
 - If transfer is run multiple times, repetitions will appear in kobo project
