@@ -43,6 +43,7 @@ To run transfer from downloaded google -g flag must be passed. When -g flag is p
 
 ## Limitations
 - _submitted_by in Kobo will show username of account running the transfer, for all submissions.
+- submission_time in Kobo will show the time transfer was completed. 'end' shows time of response submission.
 - If transfer is run multiple times, repetitions will appear in kobo project
 - For time question types in kobo, time zone is recorded. Time question types in google sheets does not have the same feature. Time will not show UTC + ___. 
 - Text submissions will be changed: all commas will show up as a space character, all text will be lowercase
