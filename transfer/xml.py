@@ -108,7 +108,6 @@ def xls_to_xml(excel_file_path, xml_file_path, submission_data):
                    
                     #if cell_element is a multiple select question, not seperated by , but a space
                     cell_value = cell_value.replace(",", " ")
-
                     cell_value = format_time(str(cell_value))
                     cell_value = format_date(cell_value)
                     cell_element.text = cell_value
@@ -133,7 +132,7 @@ def xls_to_xml(excel_file_path, xml_file_path, submission_data):
 
         num_results += 1
 
-    
+
     count =  ET.SubElement(root, 'count')
     count.text = (str(num_results))
 
@@ -147,7 +146,7 @@ def xls_to_xml(excel_file_path, xml_file_path, submission_data):
 
     tree = ET.ElementTree(root)
 
- #   tree.write(xml_file_path)
+ #   tree.write(xml_file_path) for testing purposes
 
     workbook.close()
     return root
