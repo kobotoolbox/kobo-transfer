@@ -7,7 +7,7 @@ import requests
 import uuid
 from datetime import datetime
 from xml.etree import ElementTree as ET
-
+from dateutil.parser import ParserError
 
 import openpyxl
 import xml.etree.ElementTree as ET
@@ -22,18 +22,110 @@ from .media import get_media, del_media
 from helpers.config import Config
 
 
-def fix_time(google_time):
-    #"2023/11/13 4:20:37 pm CET" google time format
-    #2023-11-13T16:33:59.551+01:00 kobo format
-    dt = parser.parse(google_time)
+
+def fix_timestamp(google_timestamp):
+    
+
+    dt = parser.parse(google_timestamp)
     kobo_format = "%Y-%m-%dT%H:%M:%S.%f"
+    #[-3] since kobo stores to miliseconds .000
+    return dt.strftime(kobo_format)[:-3]
 
-   # ("%Y-%m-%dT%H:%M:%S.%f")[:-3] + dt.strftime("%z")
+#2023-11-16 
+def fix_date(google_date, location_format):
+    #TODO: first check if its a date question type lol
+    #google stores date depending on location format
+    #you can check by going to file --> spreadhseet settings
+    
+    
+    
+    if (location_format == "dd/mm/yyy"): 
+        try:
+            date = datetime.strptime(google_date, '%d/%m/%Y')
+            return date
+        except ValueError:
+            return google_date
+    elif (location_format == "mm/dd/yyy"): 
+        try: 
+            date = datetime.strptime(google_date, '%m/%d/%Y')
+            return date
+        except ValueError:
+            return google_date
+    
+    else: 
+        return google_date
 
-    #[-3] because seems like kobo only goes to miliseconds .551
-    converted_time = dt.strftime(kobo_format)[:-3] + dt.strftime("%z") 
-    converted_time = converted_time[:-2] + ":" + converted_time[-2:]
-    return converted_time
+
+def new_date(google_date):
+    date = None
+    try: 
+        date = datetime.strptime(google_date, "%Y-%m-%d %H:%M:%S")
+    except ValueError:
+        return google_date
+    
+    if (date != None):
+        return date.strftime("%Y-%m-%d")
+    else: 
+        return google_date
+
+
+    """
+    is_date = None
+    try: 
+        is_date = parser.parse(google_date)
+    except ValueError: 
+        return google_date
+    
+    if (is_date!= None): 
+        if (location_format == "dd/mm/yyy"): 
+            return datetime.strptime(google_date, "%d/%m/%Y")
+        elif (location_format == "mm/dd/yyy"): 
+            return datetime.strptime(google_date, "%m/%d/%Y")
+    else: 
+        return google_date
+"""
+  
+#note that google sheets doenst save time zone, but if u enter time in kobo it saves it w UTC+ 
+def fix_time(google_time):
+    #time_question_type>15:18:00.000+01:00</time_question_type
+   # is_12_time = None
+   # is_24_time = None
+   is_time = None
+   #try:
+        #is_12_time = datetime.strptime(google_time,'%I:%M:%S %p')except ValueError:
+        #return google_time, False
+        #try: 
+           # is_24_time = datetime.strptime(google_time, '%H:%M:%S')
+        #except ValueError:
+           # return google_time, False
+
+
+   # if (is_time!= None): 
+      # return google_time.strftime("%H:%M:%S.%f")[:-3]
+  #  else: 
+       # return google_time
+    #if (is_12_time!= None):
+       # formatted = datetime.strptime(google_time, '%I:%M:%S %p').strftime('%H:%M:%S.%f')[:-3], True
+    #elif (is_24_time!= None):
+    #    formatted = datetime.strptime(google_time, '%H:%M:%S').strftime('%H:%M:%S.%f')[:-3], True
+   # else: 
+       # formatted = google_time, False
+        
+    #return formatted
+
+
+def new_time(google_time):
+    is_time = None
+    try: 
+        is_time = datetime.strptime(google_time, '%H:%M:%S')
+    except ValueError:
+        return google_time, False
+    
+    if (is_time!= None):
+        return is_time.strftime("%H:%M:%S.%f")[:-3], True
+    else: 
+        return google_time, False
+
 
 def xls_to_xml(excel_file_path, xml_file_path, submission_data):
     # Load the Excel workbook
@@ -89,13 +181,23 @@ def xls_to_xml(excel_file_path, xml_file_path, submission_data):
                 col_name = headers[col_num-1]
                 cell_element = ET.SubElement(_uid, col_name)
                 if (col_name == "end"): 
-                    cell_element.text = fix_time(str(cell_value))
+                    cell_element.text = fix_timestamp(str(cell_value))
                 else: 
-                    cell_element.text = str(cell_value).lower() #seems like kobo makes everything lower but check again
+                    if str(cell_value) == 'None': 
+                        cell_value = ""
+                
+                    cell_value = str(cell_value).lower() #seems like kobo makes everything lower but check again
                    
                     #if cell_element is a multiple select question, not seperated by ; but a space
                     #TODO how to ensure that u don't get rid of ; that are typed..
-                    cell_element.text = cell_element.text.replace(";", " ")
+                    cell_value = cell_value.replace(",", " ")
+
+                    cell_value = new_time(str(cell_value))[0]
+                    cell_value = new_date(cell_value)
+                    cell_element.text = cell_value
+
+                    
+                    #all the labels such as time question type (in form) show up with spaces replaced with underscore
 
 
         #so this version is actually diff from the version in the NSMAP
@@ -134,6 +236,8 @@ def xls_to_xml(excel_file_path, xml_file_path, submission_data):
 
     # Create an ElementTree object from the root element
     tree = ET.ElementTree(root)
+
+    tree.write(xml_file_path)
 
     workbook.close()
 

@@ -11,8 +11,8 @@ from transfer.xml import (
     get_submission_edit_data,
     print_stats,
     transfer_submissions,
+    xls_to_xml
 )
-
 
 def main(
     limit,
@@ -23,6 +23,7 @@ def main(
     validate=True,
     config_file=None,
 ):
+ 
     config = Config(config_file=config_file, validate=validate)
     config_src = config.src
 
@@ -35,6 +36,7 @@ def main(
         xml_url_src += f'&query={json.dumps(config.data_query)}'
 
     all_results = []
+
     submission_edit_data = get_submission_edit_data()
 
     print('📨 Transferring submission data')
@@ -52,7 +54,7 @@ def main(
         all_results += results
         if next_ != 'None' and next_ is not None:
             transfer(all_results, next_)
-
+        
     transfer(all_results, xml_url_src)
 
     if not keep_media:
@@ -66,6 +68,9 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description='A CLI tool to transfer submissions between projects with identical XLSForms.'
     )
+
+    args = parser.parse_args()
+
     parser.add_argument(
         '--limit',
         '-l',
@@ -108,6 +113,7 @@ if __name__ == '__main__':
         action='store_true',
         help='Keep submission attachments rather than cleaning up after transfer.',
     )
+
     parser.add_argument(
         '--quiet',
         '-q',
@@ -127,6 +133,7 @@ if __name__ == '__main__':
             validate=not args.no_validate,
             config_file=args.config_file,
         )
+    
     except KeyboardInterrupt:
         print('🛑 Stopping run')
         # Do something here so we can pick up again where this leaves off
