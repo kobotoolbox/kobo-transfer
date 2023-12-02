@@ -49,6 +49,7 @@ To run transfer from downloaded google -g flag must be passed. When -g flag is p
 - For time question types in kobo, time zone is recorded. Time question types in google sheets does not have the same feature. Time will not show UTC + ___. 
 - Text submissions will be changed: all commas will show up as a space character, all text will be lowercase
 
+- data could be recorded in Kobo as 'invalid' but code will not throw error in this case
 
 - Google sheets does not have a ‘start’ and ‘end’ like kobo does; it only records submission time. Submission time data will show up in ‘end’ column in kobo project. 
 - Does not account for empty submissions. Empty submission in xlsx will be transferred to kobo 
