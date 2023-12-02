@@ -39,7 +39,9 @@ pip install openpyxl pandas requests xmltodict python-dateutil
 ```bash
 python3 run2.py -g -ef [excel_file_path]
 ```
-To run transfer from downloaded google -g flag must be passed. When -g flag is passed, -ef flag is mandatory. File path of the xlsx form downloaded from google sheets can be passed in here. 
+To run transfer from downloaded google -g flag must be passed.
+If -ef not passed (python3 run2.py -g), default xls file used will be KoboTest(Responses_New).xlsx
+If -ef passed, file path form downloaded from google sheets can be passed in as a string. 
 
 ## Limitations
 - assumes that kobo project and google form question types, and order match (does not throw error but transferred submissios will be recorded incorrectly)
