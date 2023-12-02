@@ -11,10 +11,12 @@ from transfer.xml import (
     get_submission_edit_data,
     print_stats,
     transfer_submissions,
-    xls_to_xml
+    xls_to_xml,
 )
 
 def main(
+    gtransfer,
+    excel_file,
     limit,
     last_failed=False,
     keep_media=False,
@@ -23,10 +25,9 @@ def main(
     validate=True,
     config_file=None,
 ):
- 
     config = Config(config_file=config_file, validate=validate)
     config_src = config.src
-
+   
     print('📸 Getting all submission media', end=' ', flush=True)
     get_media()
 
@@ -36,13 +37,16 @@ def main(
         xml_url_src += f'&query={json.dumps(config.data_query)}'
 
     all_results = []
+    submission_edit_data = get_submission_edit_data() 
 
-    submission_edit_data = get_submission_edit_data()
-
-    print('📨 Transferring submission data')
+    xml_file_path = './output.xml' #TODO: (for testing purposes)
 
     def transfer(all_results, url=None):
-        parsed_xml = get_src_submissions_xml(xml_url=url)
+        if (gtransfer):
+            parsed_xml = xls_to_xml(excel_file, xml_file_path, submission_edit_data)
+        else: 
+            parsed_xml = get_src_submissions_xml(xml_url=url)
+        
         submissions = parsed_xml.findall(f'results/{config_src["asset_uid"]}')
         next_ = parsed_xml.find('next').text
         results = transfer_submissions(
@@ -51,6 +55,7 @@ def main(
             quiet=quiet,
             regenerate=regenerate,
         )
+
         all_results += results
         if next_ != 'None' and next_ is not None:
             transfer(all_results, next_)
@@ -63,14 +68,22 @@ def main(
     print('✨ Done')
     print_stats(all_results)
 
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description='A CLI tool to transfer submissions between projects with identical XLSForms.'
     )
-
-    args = parser.parse_args()
-
+    parser.add_argument( 
+        '--google-transfer',
+        '-g',
+        default = False,
+        action = 'store_true', 
+        help='Complete transfer from Google Form data to Kobo project.', #TODO
+    )
+    parser.add_argument( 
+        '--excel-file',
+        '-ef', 
+        help='Google form excel-file path', #TODO
+    )
     parser.add_argument(
         '--limit',
         '-l',
@@ -113,7 +126,6 @@ if __name__ == '__main__':
         action='store_true',
         help='Keep submission attachments rather than cleaning up after transfer.',
     )
-
     parser.add_argument(
         '--quiet',
         '-q',
@@ -125,6 +137,8 @@ if __name__ == '__main__':
 
     try:
         main(
+            gtransfer=args.google_transfer,
+            excel_file=args.excel_file,
             limit=args.limit,
             last_failed=args.last_failed,
             regenerate=args.regenerate_uuids,
@@ -133,7 +147,6 @@ if __name__ == '__main__':
             validate=not args.no_validate,
             config_file=args.config_file,
         )
-    
     except KeyboardInterrupt:
         print('🛑 Stopping run')
         # Do something here so we can pick up again where this leaves off
