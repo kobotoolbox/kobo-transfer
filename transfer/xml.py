@@ -25,6 +25,9 @@ def get_submission_edit_data():
 
 
 def get_all_values_from_xml(elem):
+    '''
+    Return a list of all the values in the submission's XML
+    '''
     values = []
     for child in elem:
         values.extend(get_all_values_from_xml(child))
@@ -34,6 +37,11 @@ def get_all_values_from_xml(elem):
 
 
 def get_xml_value_media_mapping(values):
+    '''
+    Return a mapping of the filename as it's stored and the submission value
+    as it's sent. We need this to link the two together again for when filenames
+    are stripped of special characters.
+    '''
     return {get_valid_filename(v):v for v in values}
 
 
