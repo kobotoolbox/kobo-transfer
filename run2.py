@@ -5,13 +5,13 @@ import json
 import sys
 
 from helpers.config import Config
-from transfer.media import get_media, del_media, download_google_media
+from transfer.media import get_media, del_media
+from transfer.xlsx_kobo import xls_to_xml
 from transfer.xml import (
     get_src_submissions_xml,
     get_submission_edit_data,
     print_stats,
     transfer_submissions,
-    xls_to_xml,
 )
 
 def main(
@@ -29,8 +29,7 @@ def main(
     config_src = config.src
    
     print('📸 Getting all submission media', end=' ', flush=True)
-    #get_media() #TODO: josh saves all media in the attachments folder here
-    #download_google_media("https://drive.google.com/drive/u/1/folders/149lRc_R6YBqqUCQEMuN_vmz36wqp5r1BiZolmcxGqDO4J5the7h_g_8xZ8Jvuz_50ugrnhcR") #TODO hardcoded folder to all media from google survey
+    get_media() 
     xml_url_src = config_src['xml_url'] + f'?limit={limit}'
 
     if last_failed and config.last_failed_uuids:
@@ -49,11 +48,12 @@ def main(
         
         submissions = parsed_xml.findall(f'results/{config_src["asset_uid"]}')
         next_ = parsed_xml.find('next').text
-        results = transfer_submissions(
-            submissions,
-            submission_edit_data,
-            quiet=quiet,
-            regenerate=regenerate,
+
+        results = transfer_submissions(  
+                submissions,
+                submission_edit_data,
+                quiet=quiet,
+                regenerate=regenerate,
         )
 
         all_results += results
