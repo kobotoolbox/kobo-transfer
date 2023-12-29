@@ -5,7 +5,7 @@ import json
 import sys
 
 from helpers.config import Config
-from transfer.media import get_media, del_media
+from transfer.media import get_media, del_media, download_google_media
 from transfer.xml import (
     get_src_submissions_xml,
     get_submission_edit_data,
@@ -29,8 +29,8 @@ def main(
     config_src = config.src
    
     print('📸 Getting all submission media', end=' ', flush=True)
-    get_media()
-
+    #get_media() #TODO: josh saves all media in the attachments folder here
+    #download_google_media("https://drive.google.com/drive/u/1/folders/149lRc_R6YBqqUCQEMuN_vmz36wqp5r1BiZolmcxGqDO4J5the7h_g_8xZ8Jvuz_50ugrnhcR") #TODO hardcoded folder to all media from google survey
     xml_url_src = config_src['xml_url'] + f'?limit={limit}'
 
     if last_failed and config.last_failed_uuids:
@@ -82,7 +82,7 @@ if __name__ == '__main__':
     parser.add_argument( 
         '--excel-file',
         '-ef', 
-        default = "./KoboTest(Responses_New).xlsx",
+        default = "./KoboTest(Responses_New(nofile).xlsx",
         help='Google form excel-file path', #TODO
     )
     parser.add_argument(

@@ -7,6 +7,7 @@ import requests
 import shutil
 import sys
 import time
+import gdown
 
 from helpers.config import Config
 
@@ -19,6 +20,11 @@ def del_media():
         shutil.rmtree(media_path)
 
 
+def download_google_media(url): 
+    # url = "https://drive.google.com/drive/u/1/folders/149lRc_R6YBqqUCQEMuN_vmz36wqp5r1BiZolmcxGqDO4J5the7h_g_8xZ8Jvuz_50ugrnhcR"
+    gdown.download_folder(url, quiet=True, use_cookies=False)
+
+
 def get_media(verbosity=0, chunk_size=1024, throttle=0.1, limit=1000, query=''):
     config = Config().src
     config.update(
@@ -29,9 +35,10 @@ def get_media(verbosity=0, chunk_size=1024, throttle=0.1, limit=1000, query=''):
             'throttle': throttle,
         }
     )
+   
     stats = download_all_media(
-        data_url=config['data_url'],
-        stats=get_clean_stats(),
+       data_url=config['data_url'],
+       stats=get_clean_stats(),
     )
 
 

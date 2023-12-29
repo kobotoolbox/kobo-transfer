@@ -8,6 +8,9 @@ import uuid
 from datetime import datetime
 from xml.etree import ElementTree as ET
 from dateutil.parser import ParserError
+import re
+import gdown
+
 
 import openpyxl
 import xml.etree.ElementTree as ET
@@ -17,13 +20,14 @@ from datetime import datetime, timedelta
 import pytz
 from dateutil import parser
 
-
 from .media import get_media, del_media
 from helpers.config import Config
+
 
 def format_timestamp(google_timestamp):
     dt = parser.parse(google_timestamp)
     kobo_format = "%Y-%m-%dT%H:%M:%S.%f"
+
     #[-3] since kobo stores to miliseconds .000
     return dt.strftime(kobo_format)[:-3]
 
@@ -98,6 +102,7 @@ def xls_to_xml(excel_file_path, xml_file_path, submission_data):
         for col_num, cell_value in enumerate(row, start=1):
                 col_name = headers[col_num-1]
                 cell_element = ET.SubElement(_uid, col_name)
+
                 if (col_name == "end"): 
                     cell_element.text = format_timestamp(str(cell_value))
                 else: 
@@ -106,7 +111,7 @@ def xls_to_xml(excel_file_path, xml_file_path, submission_data):
         
                     cell_value = str(cell_value).lower()
                    
-                    #if cell_element is a multiple select question, not seperated by , but a space
+                    #multiple select question respones seperated by , in google
                     cell_value = cell_value.replace(",", " ")
                     cell_value = format_time(str(cell_value))
                     cell_value = format_date(cell_value)
@@ -129,10 +134,9 @@ def xls_to_xml(excel_file_path, xml_file_path, submission_data):
         _uid.append(meta)
 
         results.append(_uid)
-
+        
         num_results += 1
-
-
+    
     count =  ET.SubElement(root, 'count')
     count.text = (str(num_results))
 
@@ -171,6 +175,62 @@ def get_src_submissions_xml(xml_url):
     if not res.status_code == 200:
         raise Exception('Something went wrong')
     return ET.fromstring(res.text)
+
+
+def submit_data_test(xml_sub, _uuid, original_uuid):
+     #TODO
+    config = Config().dest
+
+    file_tuple = (_uuid, io.BytesIO(xml_sub))
+    files = {'xml_submission_file': file_tuple}
+
+    # see if there is media to upload with it
+    submission_attachments_path = "/Users/dyaqub/git/kobo-transfer/attachments/testmedia/*"
+    for file_path in glob.glob(submission_attachments_path):
+        filename = os.path.basename(file_path)
+        files[filename] = (filename, open(file_path, 'rb'))
+
+    res = requests.Request(
+        method='POST',
+        url=config['submission_url'],
+        files=files,
+        headers=config['headers'],
+    )
+    session = requests.Session()
+    res = session.send(res.prepare())
+    return res.status_code
+
+#TODO
+#bottom half is repeat of submit_data 
+#jsut trying to link it to the config file
+def upload_google_media(xml_sub, _uuid, original_uuid):
+    file_tuple = (_uuid, io.BytesIO(xml_sub))
+    files = {'xml_submission_file': file_tuple}
+
+    config = Config().dest
+    q_links = config["question_link"]
+
+    for item in q_links:
+        for question in item:
+            drive_link = item[question]
+            gdown.download_folder(drive_link, quiet=True, use_cookies=False)
+
+            #submission_attachments_path = "./{question}/*"
+            submission_attachments_path = "/Users/dyaqub/git/kobo-transfer/attachments/testmedia/*"
+            for file_path in glob.glob(submission_attachments_path):
+                 filename = os.path.basename(file_path)
+                 print(filename, open(file_path, 'rb'))
+
+    res = requests.Request(
+        method='POST',
+        url=config['submission_url'],
+        files=files,
+        headers=config['headers'],
+    )
+
+    session = requests.Session()
+    res = session.send(res.prepare())
+    return res.status_code
 
 
 def submit_data(xml_sub, _uuid, original_uuid):
@@ -261,7 +321,16 @@ def transfer_submissions(all_submissions_xml, asset_data, quiet, regenerate):
         update_element_value(
             submission_xml, 'formhub/uuid', asset_data['formhub_uuid']
         )
-        result = submit_data(ET.tostring(submission_xml), _uuid, original_uuid)
+
+        #TODO, add a condition where this is only for google transfer
+        #if final in all_submissions_xml, it is empty, and only used to upload all attachments
+       # if (submission_xml == all_submissions_xml[-1]):
+        #    uploaded = upload_google_media(ET.tostring(submission_xml), _uuid, original_uuid)
+         #   if (uploaded != 201 and uploaded != 202):
+          #      log_failure("upload all media from google drive folder failed")
+      #  else: 
+        result = submit_data_test(ET.tostring(submission_xml), _uuid, original_uuid)
+
         if result == 201:
             msg = f'✅ {_uuid}'
         elif result == 202:
@@ -272,6 +341,11 @@ def transfer_submissions(all_submissions_xml, asset_data, quiet, regenerate):
         if not quiet:
             print(msg)
         results.append(result)
+    
+    #TODO
+    #when you do submit_data_test, it's doing it for every submission in all_submissions
+    #need to create extra submission and call it the submit_data_test( specifically for attachemnts) at the end
+
     return results
 
 
