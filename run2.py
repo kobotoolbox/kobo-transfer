@@ -92,7 +92,7 @@ if __name__ == '__main__':
     parser.add_argument( 
         '--excel-file',
         '-ef', 
-        default = "./Kobo_Platform_Test_-_rank-groups.xlsx",
+        default = "./data.xlsx",
         help='Google form excel-file path', #TODO
     )
     parser.add_argument(

@@ -165,14 +165,14 @@ def google_xls_to_xml(excel_file_path, xml_file_path, submission_data):
 def group_element(_uid, group, cell_value):
     #print("group" + group)
     group_name = group.split("/")
-    #print("Group name: " + group_name[0] + group_name[1])
+   # print("Group name: " + group_name[0] + group_name[1])
     element = _uid.find('.//' + group_name[0])
-    #print(element)
+   # print(element)
     if (element == None):
         element = ET.SubElement(_uid, group_name[0])
-    group_element = ET.SubElement(element, group_name[1])
-    
-    group_element.text = cell_value
+    if (group_name[0] != group_name[1]):
+        group_element = ET.SubElement(element, group_name[1])
+        group_element.text = cell_value
     return _uid
 
 #TODO: ideally would combine the two methods
@@ -215,23 +215,20 @@ def general_xls_to_xml(excel_file_path, xml_file_path, submission_data):
         
                 if (col_name == "_uuid"):
                     if cell_value == None:
-                       formatted_uuid = formatted_uuid + generate_new_instance_id()[1]
+                        formatted_uuid = formatted_uuid + generate_new_instance_id()[1]
                     else:
                         formatted_uuid = formatted_uuid + str(cell_value)
             
                 #TODO HOW TO FIX SUBMITTED_BY
                 
+
                 group_arr = col_name.split('/')
-                if (len(group_arr) == 2) and group_arr[0] == group_arr[1]:
+
+                if len(group_arr) == 2:
                     #create new element for ranking question
                     _uid = group_element(_uid, str(col_name), str(cell_value))
                     continue
 
-                #create new element for group question, or add to group
-                #add to ranking question with choice element
-                if (col_name.startswith("group_") or col_name.endswith("_choice")):
-                    _uid = group_element(_uid, str(col_name), str(cell_value))
-                    continue
 
                 if not (col_name.startswith("_")): 
                     cell_element = ET.SubElement(_uid, col_name)
@@ -254,6 +251,8 @@ def general_xls_to_xml(excel_file_path, xml_file_path, submission_data):
             </meta>
         }"""
         meta = ET.Element("meta")
+        if (formatted_uuid == "uuid:"):
+            formatted_uuid = formatted_uuid + generate_new_instance_id()[1]
         instanceId = ET.SubElement(meta, "instanceID") 
         deprecatedId = ET.SubElement(meta, "deprecatedID")
 
