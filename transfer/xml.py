@@ -87,6 +87,7 @@ def submit_data(xml_sub, _uuid, original_uuid, xml_value_media_map):
         files=files,
         headers=config['headers'],
     )
+
     session = requests.Session()
     res = session.send(res.prepare())
     return res.status_code
@@ -161,10 +162,6 @@ def transfer_submissions(all_submissions_xml, asset_data, quiet, regenerate):
     results = []
 
     for submission_xml in all_submissions_xml:
-        # Use the same UUID so that duplicates are rejected
-        #TODO currently this is not working for me
-        # i think this makes sense because uuid is regenerated every time.. 
-        #how do i make it so that its not... 
 
         original_uuid = submission_xml.find('meta/instanceID').text.replace(
             'uuid:', ''
