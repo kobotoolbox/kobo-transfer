@@ -125,39 +125,6 @@ def generate_new_instance_id() -> (str, str):
     return _uuid, f'uuid:{_uuid}'
 
 
-#TODO MOVE THIS TO XLSX_KOBO
-#bottom half is repeat of submit_data 
-#jsut trying to link it to the config file
-def upload_google_media(xml_sub, _uuid, original_uuid):
-    file_tuple = (_uuid, io.BytesIO(xml_sub))
-    files = {'xml_submission_file': file_tuple}
-
-    config = Config().dest
-    q_links = config["question_link"]
-
-    for item in q_links:
-        for question in item:
-            drive_link = item[question]
-            gdown.download_folder(drive_link, quiet=True, use_cookies=False)
-
-            submission_attachments_path = "./" + question + "/*"
-            #TODO hard coded
-            #submission_attachments_path = "/Users/dyaqub/git/kobo-transfer/attachments/testmedia/*"
-            for file_path in glob.glob(submission_attachments_path):
-                 filename = os.path.basename(file_path)
-                 files[filename] = (filename, open(file_path, 'rb'))
-
-    res = requests.Request(
-        method='POST',
-        url=config['submission_url'],
-        files=files,
-        headers=config['headers'],
-    )
-
-    session = requests.Session()
-    res = session.send(res.prepare())
-    return res.status_code
-
 def transfer_submissions(all_submissions_xml, asset_data, quiet, regenerate):
     results = []
 
@@ -186,19 +153,10 @@ def transfer_submissions(all_submissions_xml, asset_data, quiet, regenerate):
             submission_xml, 'formhub/uuid', asset_data['formhub_uuid']
         )
 
-        #TODO, add a condition where this is only for google transfer
-        #if final in all_submissions_xml, it is empty, and only used to upload all attachments
-        if (submission_xml == all_submissions_xml[-1]):
-            uploaded = upload_google_media(ET.tostring(submission_xml), _uuid, original_uuid)
-            if (uploaded != 201 and uploaded != 202):
-               log_failure("upload all media from google drive folder failed")
-        else: 
-            #result = upload_google_media(ET.tostring(submission_xml), _uuid, original_uuid)
-           # result = submit_data(ET.tostring(submission_xml), _uuid, original_uuid)
-            submission_values = get_all_values_from_xml(submission_xml)
-            xml_value_media_map = get_xml_value_media_mapping(submission_values)
+        submission_values = get_all_values_from_xml(submission_xml)
+        xml_value_media_map = get_xml_value_media_mapping(submission_values)
 
-            result = submit_data(
+        result = submit_data(
                 ET.tostring(submission_xml),
                 _uuid,
                 original_uuid,
@@ -216,9 +174,6 @@ def transfer_submissions(all_submissions_xml, asset_data, quiet, regenerate):
             print(msg)
         results.append(result)
     
-    #TODO
-    #when you do submit_data_test, it's doing it for every submission in all_submissions
-    #need to create extra submission and call it the submit_data_test( specifically for attachemnts) at the end
 
     return results
 

@@ -133,29 +133,6 @@ def google_xls_to_xml(excel_file_path, xml_file_path, submission_data):
         results.append(_uid)
         
         num_results += 1
-    
-    #create an extra submission which is blank but only needed to upload ALL attachments
-    #how are you going to get the folder tho, i think you need to specify in the config file tbh
-    # create formhub element with nested uuid
-    _uid = ET.Element(uid, NSMAP)
-    fhub_el = ET.SubElement(_uid, "formhub") 
-    uuid_el = ET.SubElement(fhub_el, "uuid") 
-    uuid_el.text = formhubuuid
-
-    #start element empty
-    start_element = ET.Element("start")
-    _uid.append(start_element)
-
-    #each response to question should be blank
-    for col_num, cell_value in enumerate(row, start=1):
-            col_name = headers[col_num-1]
-            cell_element = ET.SubElement(_uid, col_name)
-            cell_element.text = ("")
-            
-    version = ET.Element("__version__")
-    version.text = (__version__)
-    _uid.append(version)
-
 
     meta = ET.Element("meta")
     instanceId = ET.SubElement(meta, "instanceID") 
