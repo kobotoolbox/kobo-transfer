@@ -1,87 +1,93 @@
 # kobo-transfer
 
-Transfer submissions between two identical projects.
+Transfer submissions from Google Form to Kobo Project
+
+## Requirements
+
+Make sure you have the following Python packages installed:
+
+```bash
+pip install openpyxl pandas requests xmltodict python-dateutil
+```
 
 ## Setup
 
-1. Ensure the destination project is deployed and has the same content as the
-   source project.
+1. Destination project must be deployed and have the same content as Google Form. All questions should be in same order. 
 
-1. Clone a copy of this repo somewhere on your local machine:
 
-```bash
-git clone https://github.com/kobotoolbox/kobo-transfer
-```
+|Google Question Type | Kobo Question Type |
+| -------- | -------- |
+| Select one | Multiple Choice |
+| Short Answer, Paragraph |Text|
+| Checkboxes | Select Many|
+| Linear Scale | Range |
+| Dropdown | Select One|
+| Date | Date |
+| Time | Time |
 
-1. Copy `sample-config.json` to `config.json` and add your configuration details
-   for the source (`src`) and destination (`dest`) projects. If both projects
-   are located on the same Kobo instance, then just duplicate the URL and token
-   values.
+
+2. Clone a copy of this repo somewhere on your local machine
+
+3. Copy `sample-config.json` to `config.json` and add your configuration details
+   for the source (`src`) and destination (`dest`) projects. If transfering from google forms to kobo, duplicate src and destination url and token.
+
+4. Open Google Form data (Responses tab) in Google Sheets, and download as xlsx from there (file → download as → microsoft excel (xlsx))
 
 ## Usage
 
 ```bash
-python3 run.py \
-  [--config-file/-c] [--limit/-l] [--last-failed/-lf] \
-  [--keep-media/-k] [--regenerate-uuids/-R] [--no-validate/-N] [--quiet/-q]
+python3 run2.py -g -ef [excel_file_path]
 ```
+To run transfer from downloaded google -g flag must be passed.
+If -ef not passed (python3 run2.py -g), default xls file used will be KoboTest(Responses_New).xlsx
+If -ef passed, file path form downloaded from google sheets can be passed in as a string. 
 
-The original UUID for each submission is maintained across the transfer,
-allowing for duplicate submissions to be rejected at the destination project if
-the script is run multiple times. If this behaviour is not desired, pass the
-`--regenerate-uuids` flag to create new UUIDs for each submission. This may be
-necessary when transferring submissions to a project located on the same server.
+## Edge Cases
+- no effect on transfer if google form questions, and kobo form questions are in different orders
+- no effect if some questions in kobo form are not present in google form (the response cells for that column will just be empty)
+- responses that are left blank in google form results show up correctly (also blank) in kobo
+- if the question strings in kobo form and google form are not exact match, transfer will add columns in kobo data for the "extra" questions in google form
 
-If submissions contain media attachments, all media will be downloaded to a
-local `attachments/` directory before the transfer between projects begin.
-Attachment files will be cleaned up after completion of the transfer unless the
-`--keep-media` flag is passed.
-
-The `--limit` option can be set to restrict the number of submissions processed
-in a batch. For large projects, either in number of submissions or number of
-questions or both, it may be necessary to reduce the limit below the default of
-30000 to mitigate time-outs from the server.
-
-Sometimes transfers will fail for whatever reason. A list of failed UUIDs is
-stored in `.log/failures.txt` after each run. You can run the transfer again
-with only these failed submissions by passing the flag `--last-failed`.
-
-If you would like to have a configuration file other than `config.json`, such as
-when different configurations are kept in the directory, then specify the file
-path with `--config-file`:
-
-```bash
-python3 run.py --config-file config-2.json
-```
-
-By default, the configuration file will be validated before the transfer is
-attempted. Pass the `--no-validate` flag to skip this step.
-
-## Media attachments
-
-Media attachments are written to the local `attachments/` directory and follow
-the tree structure of:
-
-```bash
-{asset_uid}
-├── {submission_uid}
-│   ├── {filename}
-│   └── {filename}
-├── {submission_uid}
-│   └── {filename}
-├── {submission_uid}
-│   └── {filename}
-├── {submission_uid}
-│   └── {filename}
-└── {submission_uid}
-    ├── {filename}
-    └── {filename}
-```
-
+### Plan to account for more edge Cases (TODO)
+- print a warning if question strings seem similar (differences in capitalisation, spacing, and punctuation)
+- print warning if number of questions in kobo form and google form do not match
+- check if differences in spacing for question labels has unintended effects
+- check differences in how data is saved when google form collects email addresses of responses
+- print warning when data from google form response recorded as 'invalid' in kobo (e.g invalid date format)
+- print warning if there seems to be repetition in responses (only checks and prints if flag is passed because it will otherwise slow down performance)
+- account for: uploading data is complete, then data is edited in xlsx (response slightly changed), and reuploaded
+-    currently, shows up as new responses, but this is an error and need to fix so that responses are edited
+  
 ## Limitations
+- assumes that kobo project and google form question types, and order match (does not throw error but transferred submissios will be recorded incorrectly)
+- _submitted_by in Kobo will show username of account running the transfer, for all submissions.
+- submission_time in Kobo will show the time transfer was completed. 'end' shows time of response submission.
+- If transfer is run multiple times, repetitions will appear in kobo project
+- For time question types in kobo, time zone is recorded. Time question types in google sheets does not have the same feature. Time will not show UTC + ___. 
+- Text submissions will be changed: all commas will show up as a space character, all text will be lowercase
+
+- data could be recorded in Kobo as 'invalid' but code will not throw error in this case
+
+- Google sheets does not have a ‘start’ and ‘end’ like kobo does; it only records submission time. Submission time data will show up in ‘end’ column in kobo project. 
+- Does not account for empty submissions. Empty submission in xlsx will be transferred to kobo 
+- If ‘None’ is a response in Google submission, it will show up as blank after being transferred to kobo 
 
 - Although submissions will not be duplicated across multiple runs of the
   script, if the submissions contain attachment files, the files are duplicated
   on the server.
 - The script does not check if the source and destination projects are identical
   and will transfer submission data regardless.
+
+- Does not support Google question types multiple choice grid, tick box grid, and file attachments.
+
+  ### Limitations planning to fix/improve (TODO)
+  -  currently: _submitted_by in Kobo will show username of account running the transfer, for all submissions.
+  -    change to: _submitted_by in Kobo will show up as blank, unless email address of response is saved in google form
+  - currently: If transfer is run multiple times, repetitions will appear in kobo project
+  -    change to: ... 
+ 
+
+ ## Notes regarding media uploaded as a response in google forms
+ 
+
+
