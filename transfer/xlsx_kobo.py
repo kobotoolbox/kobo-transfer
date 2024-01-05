@@ -163,11 +163,9 @@ def google_xls_to_xml(excel_file_path, xml_file_path, submission_data):
 
 
 def group_element(_uid, group, cell_value):
-    #print("group" + group)
+
     group_name = group.split("/")
-   # print("Group name: " + group_name[0] + group_name[1])
     element = _uid.find('.//' + group_name[0])
-   # print(element)
     if (element == None):
         element = ET.SubElement(_uid, group_name[0])
     if (group_name[0] != group_name[1]):
@@ -252,7 +250,7 @@ def general_xls_to_xml(excel_file_path, xml_file_path, submission_data):
         }"""
         meta = ET.Element("meta")
         if (formatted_uuid == "uuid:"):
-            formatted_uuid = formatted_uuid + generate_new_instance_id()[1]
+            formatted_uuid = generate_new_instance_id()[1]
         instanceId = ET.SubElement(meta, "instanceID") 
         deprecatedId = ET.SubElement(meta, "deprecatedID")
 
