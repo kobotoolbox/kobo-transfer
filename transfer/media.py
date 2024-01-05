@@ -18,7 +18,6 @@ def del_media():
         print('🧹 Cleaning up media (pass `--keep-media` to prevent cleanup).')
         shutil.rmtree(media_path)
 
-
 def get_media(verbosity=0, chunk_size=1024, throttle=0.1, limit=1000, query=''):
     config = Config().src
     config.update(
@@ -29,9 +28,10 @@ def get_media(verbosity=0, chunk_size=1024, throttle=0.1, limit=1000, query=''):
             'throttle': throttle,
         }
     )
+   
     stats = download_all_media(
-        data_url=config['data_url'],
-        stats=get_clean_stats(),
+       data_url=config['data_url'],
+       stats=get_clean_stats(),
     )
 
 

@@ -6,16 +6,17 @@ import sys
 
 from helpers.config import Config
 from transfer.media import get_media, del_media
+from transfer.xlsx_kobo import google_xls_to_xml, general_xls_to_xml
 from transfer.xml import (
     get_src_submissions_xml,
     get_submission_edit_data,
     print_stats,
     transfer_submissions,
-    xls_to_xml,
 )
 
 def main(
     gtransfer,
+    xtransfer,
     excel_file,
     limit,
     last_failed=False,
@@ -29,8 +30,7 @@ def main(
     config_src = config.src
    
     print('📸 Getting all submission media', end=' ', flush=True)
-    get_media()
-
+    get_media() 
     xml_url_src = config_src['xml_url'] + f'?limit={limit}'
 
     if last_failed and config.last_failed_uuids:
@@ -43,17 +43,20 @@ def main(
 
     def transfer(all_results, url=None):
         if (gtransfer):
-            parsed_xml = xls_to_xml(excel_file, xml_file_path, submission_edit_data)
+            parsed_xml = google_xls_to_xml(excel_file, xml_file_path, submission_edit_data)
+        elif (xtransfer):
+            parsed_xml = general_xls_to_xml(excel_file, xml_file_path, submission_edit_data)
         else: 
             parsed_xml = get_src_submissions_xml(xml_url=url)
         
         submissions = parsed_xml.findall(f'results/{config_src["asset_uid"]}')
         next_ = parsed_xml.find('next').text
-        results = transfer_submissions(
-            submissions,
-            submission_edit_data,
-            quiet=quiet,
-            regenerate=regenerate,
+
+        results = transfer_submissions(  
+                submissions,
+                submission_edit_data,
+                quiet=quiet,
+                regenerate=regenerate,
         )
 
         all_results += results
@@ -74,15 +77,22 @@ if __name__ == '__main__':
     )
     parser.add_argument( 
         '--google-transfer',
-        '-g',
+        '-gt',
         default = False,
         action = 'store_true', 
         help='Complete transfer from Google Form data to Kobo project.', #TODO
     )
     parser.add_argument( 
+        '--excel-transfer',
+        '-xt',
+        default = False,
+        action = 'store_true', 
+        help='Complete transfer from any xlsx form to Kobo project.', #TODO
+    )
+    parser.add_argument( 
         '--excel-file',
         '-ef', 
-        default = "./KoboTest(Responses_New).xlsx",
+        default = "./Kobo_Platform_Test_-_rank-groups.xlsx",
         help='Google form excel-file path', #TODO
     )
     parser.add_argument(
@@ -139,6 +149,7 @@ if __name__ == '__main__':
     try:
         main(
             gtransfer=args.google_transfer,
+            xtransfer = args.excel_transfer,
             excel_file=args.excel_file,
             limit=args.limit,
             last_failed=args.last_failed,

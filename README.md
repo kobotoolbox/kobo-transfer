@@ -1,6 +1,6 @@
 # kobo-transfer
 
-Transfer submissions from Google Form to Kobo Project
+Transfer submissions from XLSX Form to Kobo Project
 
 ## Requirements
 
@@ -35,9 +35,15 @@ pip install openpyxl pandas requests xmltodict python-dateutil
 
 ## Usage
 
+For Google Form:
 ```bash
-python3 run2.py -g -ef [excel_file_path]
+python3 run2.py -gt -ef [excel_file_path]
 ```
+For XLSX: 
+```bash
+python3 run2.py -xt -ef [excel_file_path]
+```
+
 To run transfer from downloaded google -g flag must be passed.
 If -ef not passed (python3 run2.py -g), default xls file used will be KoboTest(Responses_New).xlsx
 If -ef passed, file path form downloaded from google sheets can be passed in as a string. 
