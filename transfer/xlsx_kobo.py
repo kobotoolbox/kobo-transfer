@@ -278,7 +278,7 @@ def general_xls_to_xml(excel_file_path, xml_file_path, submission_data):
 
     tree = ET.ElementTree(root)
 
-    tree.write(xml_file_path) #for testing purposes
+    #tree.write(xml_file_path) #for testing purposes
 
     workbook.close()
     return root
