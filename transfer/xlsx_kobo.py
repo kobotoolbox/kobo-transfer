@@ -163,15 +163,44 @@ def google_xls_to_xml(excel_file_path, xml_file_path, submission_data):
 
 
 def group_element(_uid, group, cell_value):
-
     group_name = group.split("/")
     element = _uid.find('.//' + group_name[0])
     if (element == None):
         element = ET.SubElement(_uid, group_name[0])
     if (group_name[0] != group_name[1]):
         group_element = ET.SubElement(element, group_name[1])
-        group_element.text = cell_value
+        group_element.text = str(cell_value)
     return _uid
+
+
+def repeat_groups(submission_xml, uuid, file_path): 
+        uuid = uuid[len("uuid:"):]
+        workbook = openpyxl.load_workbook(file_path)
+        # Get the sheet names
+        sheet_names = workbook.sheetnames
+        sheet_names = sheet_names[1:]
+        for sheet_name in sheet_names:
+            sheet = workbook[sheet_name]
+            headers = [cell.value for cell in sheet[1]]
+            submission_uid_header = headers.index("_submission__uuid")
+            # Iterate through rows and columns to populate XML
+            for row in sheet.iter_rows(min_row=2, values_only=True):
+                #get the submission id for that row
+                submission_uid = str(row[submission_uid_header])
+                if (submission_uid == uuid):
+                     element = ET.SubElement(submission_xml, sheet_name)
+
+                # Iterate through cells in the row and create corresponding XML elements
+                for col_num, cell_value in enumerate(row, start=1):
+                    col_name = headers[col_num-1]
+                    group_arr = col_name.split('/')
+                    if len(group_arr) == 2 and sheet_name in col_name:
+                         #check if the submission id matches
+                        if (submission_uid == uuid): 
+                            group_element = ET.SubElement(element, group_arr[1])
+                            group_element.text = cell_value
+        
+            return submission_xml 
 
 #TODO: ideally would combine the two methods
 def general_xls_to_xml(excel_file_path, xml_file_path, submission_data):
@@ -219,14 +248,12 @@ def general_xls_to_xml(excel_file_path, xml_file_path, submission_data):
             
                 #TODO HOW TO FIX SUBMITTED_BY
                 
-
                 group_arr = col_name.split('/')
 
                 if len(group_arr) == 2:
                     #create new element for ranking question
                     _uid = group_element(_uid, str(col_name), str(cell_value))
                     continue
-
 
                 if not (col_name.startswith("_")): 
                     cell_element = ET.SubElement(_uid, col_name)
@@ -237,6 +264,7 @@ def general_xls_to_xml(excel_file_path, xml_file_path, submission_data):
                 
                     cell_element.text = str(cell_value)
                     
+        _uid = repeat_groups(_uid, formatted_uuid, excel_file_path)
 
         version = ET.Element("__version__")
         version.text = (__version__)
