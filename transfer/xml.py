@@ -21,7 +21,7 @@ from datetime import datetime, timedelta
 import pytz
 from dateutil import parser
 
-from .media import get_media, del_media
+from .media import get_media, del_media, rename_media_folder
 from helpers.config import Config
 
 def get_submission_edit_data():

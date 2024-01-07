@@ -12,7 +12,7 @@ from utils.text import get_valid_filename
 
 import openpyxl
 import xml.etree.ElementTree as ET
-
+from .media import rename_media_folder
 import pandas as pd
 from datetime import datetime, timedelta
 
@@ -126,6 +126,7 @@ def google_xls_to_xml(excel_file_path, xml_file_path, submission_data):
         meta = ET.Element("meta")
         instanceId = ET.SubElement(meta, "instanceID") 
         _uuid, formatted_uuid = generate_new_instance_id()
+        
         instanceId.text = formatted_uuid
         
         _uid.append(meta)
@@ -202,6 +203,9 @@ def repeat_groups(submission_xml, uuid, file_path):
         
             return submission_xml 
 
+
+
+
 #TODO: ideally would combine the two methods
 def general_xls_to_xml(excel_file_path, xml_file_path, submission_data):
     workbook = openpyxl.load_workbook(excel_file_path)
@@ -227,7 +231,7 @@ def general_xls_to_xml(excel_file_path, xml_file_path, submission_data):
          "version" : str(v)}
 
     # Iterate through rows and columns to populate XML
-    for row in sheet.iter_rows(min_row=2, values_only=True):
+    for row_num, row in enumerate(sheet.iter_rows(min_row=2, values_only=True,), start=2):
         # create formhub element with nested uuid
         _uid = ET.Element(uid, NSMAP)
         fhub_el = ET.SubElement(_uid, "formhub") 
@@ -264,7 +268,7 @@ def general_xls_to_xml(excel_file_path, xml_file_path, submission_data):
                 
                     cell_element.text = str(cell_value)
                     
-        _uid = repeat_groups(_uid, formatted_uuid, excel_file_path)
+        repeat_groups(_uid, formatted_uuid, excel_file_path)
 
         version = ET.Element("__version__")
         version.text = (__version__)
@@ -284,6 +288,11 @@ def general_xls_to_xml(excel_file_path, xml_file_path, submission_data):
 
         instanceId.text = formatted_uuid
         deprecatedId.text = formatted_uuid
+
+        #TODO
+        #print(formatted_uuid, row)
+
+        rename_media_folder(submission_data, formatted_uuid[len("uuid:"):], row_num)
         
         _uid.append(meta)
 
@@ -309,5 +318,6 @@ def general_xls_to_xml(excel_file_path, xml_file_path, submission_data):
     #tree.write(xml_file_path) #for testing purposes
 
     workbook.close()
+
     return root
 
