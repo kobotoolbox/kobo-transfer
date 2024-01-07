@@ -17,7 +17,7 @@ pip install openpyxl pandas requests xmltodict python-dateutil
 
 |Google Question Type | Kobo Question Type |
 | -------- | -------- |
-| Select one | Multiple Choice |
+| Multiple Choice | Select one |
 | Short Answer, Paragraph |Text|
 | Checkboxes | Select Many|
 | Linear Scale | Range |
