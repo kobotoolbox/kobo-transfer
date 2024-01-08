@@ -54,113 +54,56 @@ def format_time(google_time):
         return google_time
 
 
-def google_xls_to_xml(excel_file_path, xml_file_path, submission_data):
-    # Load the Excel workbook
-    workbook = openpyxl.load_workbook(excel_file_path)
-
-    # Select the default sheet (usually named 'Sheet1')
-    sheet = workbook.active
-
+def match_kobo_xls(questions, submission_data):
+    config_src = Config().src
+    url = config_src['xml_url']
+    url = url.replace("/data.xml", ".xml")
+    
+    res = requests.get(url)
+    if not res.status_code == 200:
+        raise Exception('Something went wrong')
+    
+    instance_kobo_form = ET.fromstring(res.text)
     uid = submission_data["asset_uid"]
-    formhubuuid = submission_data["formhub_uuid"]
-    v = submission_data["version"]
-    __version__ = submission_data["__version__"]
+    start = instance_kobo_form.find(".//{uid}}")
+    end = instance_kobo_form.find(".//meta")
 
-    root = ET.Element("root") # Create the root element for the XML tree
-    results = ET.Element("results")
-   
-    headers = [cell.value for cell in sheet[1]]
-    for i in range(len(headers)): 
-        if (headers[i] == "Timestamp"): 
-            headers[i] = "end"
-        headers[i] =  headers[i].rstrip(string.punctuation)
-        headers[i] = headers[i].replace(" ", "_")
+    num_kobo_questions = instance_kobo_form[instance_kobo_form.index(start) + 1:instance_kobo_form.index(end)].count('*')
+    num_xls_questions = len(questions)
 
-    num_results = 0
+    #all kobo forms have <start> and <end>
+    num_kobo_questions = num_kobo_questions - 2
 
-    NSMAP = {"xmlns:jr" :  'http://openrosa.org/javarosa',
-         "xmlns:orx" : 'http://openrosa.org/xforms', 
-         "id" : str(uid),
-         "version" : str(v)}
+    #Timestamp in google forms is equivalent to start in kobo, and is recorded
+    # for each submission 
+    if "start" in questions or "Timestamp" in questions:
+        num_kobo_questions += 1
+    
+    if "end"  in questions: 
+        num_kobo_questions += 1
+    
+    #TODO 
+    #WHAT ABOUT GROUPS HERE? 
+    # CHECK IF THAT AFFECTS ANYTHING ^^^
+    if num_kobo_questions != num_xls_questions: 
+        print("Warning: Number of questions in Kobo Form, and imported data may not match.")
+    
 
-    # Iterate through rows and columns to populate XML
-    for row in sheet.iter_rows(min_row=2, values_only=True):
-         # create formhub element with nested uuid
-        _uid = ET.Element(uid, NSMAP)
-        fhub_el = ET.SubElement(_uid, "formhub") 
-        uuid_el = ET.SubElement(fhub_el, "uuid") 
-        uuid_el.text = formhubuuid
+    #s.lower().strip(string.punctuation).strip()
+    
+    #kobo questions = numkobo
+    #subtract two from this because theres obviously going to be a start and end
 
-        #start element empty
-        start_element = ET.Element("start")
-        _uid.append(start_element)
+    #num questions = question
+    #if there is a start (add + num1 to numkobo)
+    #if there is an end (add + num1 to numkobo)
+    
+    #check if there is a timestamp 
+    #since this is equivalent to start
+    #add num1 to kobo
 
-        # Iterate through cells in the row and create corresponding XML elements
-        for col_num, cell_value in enumerate(row, start=1):
-                col_name = headers[col_num-1]
-                cell_element = ET.SubElement(_uid, col_name)
-
-                if (col_name == "end"): 
-                    cell_element.text = format_timestamp(str(cell_value))
-                else: 
-                    if str(cell_value) == 'None': 
-                        cell_value = ""
-        
-                    cell_value = str(cell_value).lower()
-                   
-                    #multiple select question respones seperated by , in google
-                    cell_value = cell_value.replace(",", " ")
-                    cell_value = format_time(str(cell_value))
-                    cell_value = format_date(cell_value)
-                    cell_element.text = cell_value
-
-        version = ET.Element("__version__")
-        version.text = (__version__)
-        _uid.append(version)
-
-        """meta tag before this ends
-          <meta>
-                <instanceID>uuid:a0ea37ef-ac71-434b-93b6-1713ef4c367f</instanceID>
-            </meta>
-        }"""
-        meta = ET.Element("meta")
-        instanceId = ET.SubElement(meta, "instanceID") 
-        _uuid, formatted_uuid = generate_new_instance_id()
-        
-        instanceId.text = formatted_uuid
-        
-        _uid.append(meta)
-
-        results.append(_uid)
-        
-        num_results += 1
-
-    meta = ET.Element("meta")
-    instanceId = ET.SubElement(meta, "instanceID") 
-    _uuid, formatted_uuid = generate_new_instance_id()
-    instanceId.text = formatted_uuid
-        
-    _uid.append(meta)
-
-    results.append(_uid)
-
-    count =  ET.SubElement(root, 'count')
-    count.text = (str(num_results))
-
-    next = ET.SubElement(root, 'next')
-    next.text = ("None") #TODO
-
-    previous = ET.SubElement(root, 'previous')
-    previous.text = ("None") #TODO
-
-    root.append(results)
-
-    tree = ET.ElementTree(root)
-
- #   tree.write(xml_file_path) for testing purposes
-
-    workbook.close()
-    return root
+    #lowercase everything
+    #strip all punctuation except white spaces
 
 
 def group_element(_uid, group, cell_value):
@@ -177,40 +120,168 @@ def group_element(_uid, group, cell_value):
 def repeat_groups(submission_xml, uuid, file_path): 
         uuid = uuid[len("uuid:"):]
         workbook = openpyxl.load_workbook(file_path)
-        # Get the sheet names
+
         sheet_names = workbook.sheetnames
         sheet_names = sheet_names[1:]
         for sheet_name in sheet_names:
             sheet = workbook[sheet_name]
             headers = [cell.value for cell in sheet[1]]
+
             submission_uid_header = headers.index("_submission__uuid")
-            # Iterate through rows and columns to populate XML
+   
             for row in sheet.iter_rows(min_row=2, values_only=True):
                 #get the submission id for that row
                 submission_uid = str(row[submission_uid_header])
+
                 if (submission_uid == uuid):
                      element = ET.SubElement(submission_xml, sheet_name)
 
-                # Iterate through cells in the row and create corresponding XML elements
                 for col_num, cell_value in enumerate(row, start=1):
                     col_name = headers[col_num-1]
                     group_arr = col_name.split('/')
+
                     if len(group_arr) == 2 and sheet_name in col_name:
-                         #check if the submission id matches
                         if (submission_uid == uuid): 
                             group_element = ET.SubElement(element, group_arr[1])
                             group_element.text = cell_value
         
             return submission_xml 
 
+def google_xls_to_xml(excel_file_path, xml_file_path, submission_data):
+   try:
+       workbook = openpyxl.load_workbook(excel_file_path)
+   except FileNotFoundError:
+       print(f"⚠️ Error: Excel file not found at path '{excel_file_path}'.")
+   except openpyxl.utils.exceptions.InvalidFileException:
+       print(f"⚠️ Error: Invalid file format for '{excel_file_path}'")
+   except TypeError as e:
+       if "NoneType" in str(e):
+           print(f"⚠️ Error: File path is None. Specify xls file path with flag -ef")
+   except Exception as e:
+       print(f"⚠️ Something went wrong when reading xlsx file: {e}")
 
 
+   sheet = workbook.active
+   uid = submission_data["asset_uid"]
+   formhubuuid = submission_data["formhub_uuid"]
+   v = submission_data["version"]
+   __version__ = submission_data["__version__"]
 
-#TODO: ideally would combine the two methods
-def general_xls_to_xml(excel_file_path, xml_file_path, submission_data):
-    workbook = openpyxl.load_workbook(excel_file_path)
 
-    #select default sheet
+   root = ET.Element("root")
+   results = ET.Element("results")
+ 
+   headers = [cell.value for cell in sheet[1]]
+   for i in range(len(headers)):
+       if (headers[i] == "Timestamp"):
+           headers[i] = "end"
+       headers[i] =  headers[i].rstrip(string.punctuation)
+       headers[i] = headers[i].replace(" ", "_")
+  
+
+
+   num_results = 0
+
+
+   NSMAP = {"xmlns:jr" :  'http://openrosa.org/javarosa',
+        "xmlns:orx" : 'http://openrosa.org/xforms',
+        "id" : str(uid),
+        "version" : str(v)}
+
+
+   # iterate through rows and columns to populate XML
+   for row in sheet.iter_rows(min_row=2, values_only=True):        
+        # create formhub element with nested uuid
+       _uid = ET.Element(uid, NSMAP)
+       fhub_el = ET.SubElement(_uid, "formhub")
+       uuid_el = ET.SubElement(fhub_el, "uuid")
+       uuid_el.text = formhubuuid
+
+
+       #start element empty
+       start_element = ET.Element("start")
+       _uid.append(start_element)
+
+
+       # iterate through cells in the row
+       for col_num, cell_value in enumerate(row, start=1):
+               col_name = headers[col_num-1]
+               cell_element = ET.SubElement(_uid, col_name)
+
+
+               if (col_name == "end"):
+                   cell_element.text = format_timestamp(str(cell_value))
+               else:
+                   if str(cell_value) == 'None':
+                       cell_value = ""
+      
+                   #cell_value = str(cell_value).lower()
+                 
+                   #multiple select question responses seperated by , in google
+                   #cell_value = cell_value.replace(",", " ")
+                   cell_value = format_time(str(cell_value))
+                   cell_value = format_date(cell_value)
+                   cell_element.text = cell_value
+  
+       version = ET.Element("__version__")
+       version.text = (__version__)
+       _uid.append(version)
+
+
+       """meta tag before this ends
+         <meta>
+               <instanceID>uuid:a0ea37ef-ac71-434b-93b6-1713ef4c367f</instanceID>
+           </meta>
+       }"""
+       meta = ET.Element("meta")
+       instanceId = ET.SubElement(meta, "instanceID")
+       _uuid, formatted_uuid = generate_new_instance_id()
+      
+       instanceId.text = formatted_uuid
+
+      
+       _uid.append(meta)
+
+
+       results.append(_uid)
+      
+       num_results += 1
+
+
+   results.append(_uid)
+   count =  ET.SubElement(root, 'count')
+   count.text = (str(num_results))
+
+
+   next = ET.SubElement(root, 'next')
+   next.text = ("None") #TODO
+
+
+   previous = ET.SubElement(root, 'previous')
+   previous.text = ("None") #TODO
+
+
+   root.append(results)
+   tree = ET.ElementTree(root)
+
+
+#   tree.write(xml_file_path) for testing purposes
+   workbook.close()
+   return root
+
+def general_xls_to_xml(excel_file_path, xml_file_path, submission_data, gtransfer = False):
+    try: 
+        workbook = openpyxl.load_workbook(excel_file_path)
+    except FileNotFoundError:
+        print(f"⚠️ Error: Excel file not found at path '{excel_file_path}'.")
+    except openpyxl.utils.exceptions.InvalidFileException:
+        print(f"⚠️ Error: Invalid file format for '{excel_file_path}'")
+    except TypeError as e: 
+        if "NoneType" in str(e):
+            print(f"⚠️ Error: File path is None. Specify xls file path with flag -ef")
+    except Exception as e:
+        print(f"⚠️ Something went wrong when reading xlsx file: {e}")
+
     sheet = workbook.active
 
     uid = submission_data["asset_uid"]
@@ -218,10 +289,19 @@ def general_xls_to_xml(excel_file_path, xml_file_path, submission_data):
     v = submission_data["version"]
     __version__ = submission_data["__version__"]
 
-    root = ET.Element("root") # Create the root element for the XML tree
+    root = ET.Element("root") 
     results = ET.Element("results")
    
     headers = [cell.value for cell in sheet[1]]
+    
+    if (gtransfer):
+        for i in range(len(headers)): 
+            if (headers[i] == "Timestamp"): 
+                headers[i] = "end"
+            headers[i] =  headers[i].rstrip(string.punctuation)
+            headers[i] = headers[i].replace(" ", "_")
+    
+   # match_kobo_xls(headers, submission_data)
 
     num_results = 0
 
@@ -230,7 +310,7 @@ def general_xls_to_xml(excel_file_path, xml_file_path, submission_data):
          "id" : str(uid),
          "version" : str(v)}
 
-    # Iterate through rows and columns to populate XML
+
     for row_num, row in enumerate(sheet.iter_rows(min_row=2, values_only=True,), start=2):
         # create formhub element with nested uuid
         _uid = ET.Element(uid, NSMAP)
@@ -240,22 +320,42 @@ def general_xls_to_xml(excel_file_path, xml_file_path, submission_data):
 
         formatted_uuid = "uuid:"
 
+        if (gtransfer):
+            #start element empty
+            start_element = ET.Element("start")
+            _uid.append(start_element)
+
+        all_empty = True
         # Iterate through cells in the row and create corresponding XML elements
         for col_num, cell_value in enumerate(row, start=1):
                 col_name = headers[col_num-1]
+
+                #if (gtransfer and col_name == "end"): 
+                 #       cell_element.text = format_timestamp(str(cell_value))
+                
+                if (gtransfer):
+                    #multiple select question responses from google forms will only show up in kobo
+                    #when selected choices are seperated by a space, and all lower case. 
+                    cell_value = str(cell_value).lower()   
+                    cell_value = str(cell_value).replace(",", " ")
+
+                    cell_value = format_time(str(cell_value))
+                    cell_value = format_date(cell_value)
+
+                if cell_value is None or cell_value == "none":  
+                    cell_value = ""
+                else:
+                    all_empty = False
         
                 if (col_name == "_uuid"):
-                    if cell_value == None:
+                    if cell_value == "":
                         formatted_uuid = formatted_uuid + generate_new_instance_id()[1]
                     else:
                         formatted_uuid = formatted_uuid + str(cell_value)
-            
-                #TODO HOW TO FIX SUBMITTED_BY
                 
                 group_arr = col_name.split('/')
-
                 if len(group_arr) == 2:
-                    #create new element for ranking question
+                    #create new element for ranking question type
                     _uid = group_element(_uid, str(col_name), str(cell_value))
                     continue
 
@@ -263,11 +363,17 @@ def general_xls_to_xml(excel_file_path, xml_file_path, submission_data):
                     cell_element = ET.SubElement(_uid, col_name)
 
                     if (col_name == "end" or col_name == "start"):
-                        if (cell_value != None):
+                        if (gtransfer):
+                            cell_value = format_timestamp(str(cell_value))
+                        elif (cell_value != None):
                             cell_value = cell_value.isoformat()
+                        
                 
                     cell_element.text = str(cell_value)
                     
+        if (all_empty): #TODO
+            print("Warning: Data may include one or more blank responses where no questions were answered.")
+        
         repeat_groups(_uid, formatted_uuid, excel_file_path)
 
         version = ET.Element("__version__")
@@ -288,10 +394,7 @@ def general_xls_to_xml(excel_file_path, xml_file_path, submission_data):
 
         instanceId.text = formatted_uuid
         deprecatedId.text = formatted_uuid
-
-        #TODO
-        #print(formatted_uuid, row)
-
+    
         rename_media_folder(submission_data, formatted_uuid[len("uuid:"):], row_num)
         
         _uid.append(meta)
@@ -305,11 +408,10 @@ def general_xls_to_xml(excel_file_path, xml_file_path, submission_data):
     count.text = (str(num_results))
 
     next = ET.SubElement(root, 'next')
-
-    #next.text = submission_data["next"] #TODO
+    next.text = None #TODO
 
     previous = ET.SubElement(root, 'previous')
-    #previous.text = submission_data["previous"] #TODO
+    previous.text = None #TODO
 
     root.append(results)
 
