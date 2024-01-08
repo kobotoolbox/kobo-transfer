@@ -49,7 +49,7 @@ If -ef not passed (python3 run2.py -g), default xls file used will be KoboTest(R
 If -ef passed, file path form downloaded from google sheets can be passed in as a string. 
 
 ## Edge Cases
-- no effect on transfer if google form questions, and kobo form questions are in different orders
+- order of questions in google form, and kobo form can be different
 - no effect if some questions in kobo form are not present in google form (the response cells for that column will just be empty)
 - responses that are left blank in google form results show up correctly (also blank) in kobo
 - if the question strings in kobo form and google form are not exact match, transfer will add columns in kobo data for the "extra" questions in google form
