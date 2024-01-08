@@ -6,7 +6,7 @@ import sys
 
 from helpers.config import Config
 from transfer.media import get_media, del_media
-from transfer.xlsx_kobo import google_xls_to_xml, general_xls_to_xml
+from transfer.xlsx_kobo import general_xls_to_xml
 from transfer.xml import (
     get_src_submissions_xml,
     get_submission_edit_data,
@@ -44,8 +44,6 @@ def main(
 
 
     def transfer(all_results, url=None):
-        #if (gtransfer):
-            #parsed_xml = google_xls_to_xml(excel_file, xml_file_path, submission_edit_data)
         if (xtransfer or gtransfer):
             parsed_xml = general_xls_to_xml(excel_file, xml_file_path, submission_edit_data, gtransfer)
         else: 
