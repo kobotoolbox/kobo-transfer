@@ -53,16 +53,13 @@ If -ef passed, file path form downloaded from google sheets can be passed in as 
 - no effect if some questions in kobo form are not present in google form (the response cells for that column will just be empty)
 - responses that are left blank in google form results show up correctly (also blank) in kobo
 - if the question strings in kobo form and google form are not exact match, transfer will add columns in kobo data for the "extra" questions in google form
-
+- data can be uploaded by running transfer, edited, and then reuploaded, and responses will not show up as new, but as edited. 
+  
 ### Plan to account for more edge Cases (TODO)
 - print a warning if question strings seem similar (differences in capitalisation, spacing, and punctuation)
 - print warning if number of questions in kobo form and google form do not match
 - check if differences in spacing for question labels has unintended effects
 - check differences in how data is saved when google form collects email addresses of responses
-- print warning when data from google form response recorded as 'invalid' in kobo (e.g invalid date format)
-- print warning if there seems to be repetition in responses (only checks and prints if flag is passed because it will otherwise slow down performance)
-- account for: uploading data is complete, then data is edited in xlsx (response slightly changed), and reuploaded
--    currently, shows up as new responses, but this is an error and need to fix so that responses are edited
   
 ## Limitations
 - assumes that kobo project and google form question types, and order match (does not throw error but transferred submissios will be recorded incorrectly)
@@ -85,13 +82,8 @@ If -ef passed, file path form downloaded from google sheets can be passed in as 
   and will transfer submission data regardless.
 
 - Does not support Google question types multiple choice grid, tick box grid, and file attachments.
-
-  ### Limitations planning to fix/improve (TODO)
-  -  currently: _submitted_by in Kobo will show username of account running the transfer, for all submissions.
-  -    change to: _submitted_by in Kobo will show up as blank, unless email address of response is saved in google form
-  - currently: If transfer is run multiple times, repetitions will appear in kobo project
-  -    change to: ... 
- 
+- If date or time format is incorrect when uploading to a Kobo Date or Time question, it will save as "Invalid" in Kobo.
+- _submitted_by in Kobo will show username of account running the transfer, for all submissions
 
  ## Notes regarding media uploaded as a response in google forms
  
