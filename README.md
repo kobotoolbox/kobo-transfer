@@ -52,8 +52,7 @@ If -ef passed, file path form downloaded from google sheets can be passed in as 
 - order of questions in google form, and kobo form can be different
 - no effect if some questions in kobo form are not present in google form (the response cells for that column will just be empty)
 - responses that are left blank in google form results show up correctly (also blank) in kobo
-- if the question strings in kobo form and google form are not exact match, transfer will add columns in kobo data for the "extra" questions in google form
-- data can be uploaded by running transfer, edited, and then reuploaded, and responses will not show up as new, but as edited. 
+- if the question strings in kobo form and google form are not exact match, transfer will add columns in kobo data for the "extra" questions in google form 
   
 ### Plan to account for more edge Cases (TODO)
 - print a warning if question strings seem similar (differences in capitalisation, spacing, and punctuation)
@@ -62,6 +61,8 @@ If -ef passed, file path form downloaded from google sheets can be passed in as 
 - check differences in how data is saved when google form collects email addresses of responses
   
 ## Limitations
+- If transferring from google form xlsx data, submissions will be duplicated each time the script is run. Even when google form xlsx data is uploaded, edited, and then reuploaded, it will show up as a new submission instead of editing the one in kobo. To avoid this, after transferring from google form xlsx into kobo once, download the kobo data in xlsx form and edit/reupload that one with the flag -xt.
+
 - assumes that kobo project and google form question types and labels match (does not throw error but transferred submissions will be recorded incorrectly)
 - _submitted_by in Kobo will show username of account running the transfer, for all submissions.
 - Google sheets does not have a ‘start’ and ‘end’ like kobo does; it only records submission time. Submission time data will show up in ‘end’ column in kobo project.
