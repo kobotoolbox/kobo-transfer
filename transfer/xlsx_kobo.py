@@ -220,7 +220,7 @@ def general_xls_to_xml(excel_file_path, xml_file_path, submission_data, gtransfe
                     cell_value = format_time(str(cell_value))
                     cell_value = format_date(cell_value)
 
-                if cell_value is None or cell_value == "none":  
+                if cell_value is None or cell_value == "none" or cell_value == "None":  
                     cell_value = ""
                 else:
                     all_empty = False
@@ -252,7 +252,7 @@ def general_xls_to_xml(excel_file_path, xml_file_path, submission_data, gtransfe
         if (all_empty): #TODO
             print("Warning: Data may include one or more blank responses where no questions were answered.")
         
-        repeat_groups(_uid, formatted_uuid, excel_file_path)
+        _uid = repeat_groups(_uid, formatted_uuid, excel_file_path)
 
         version = ET.Element("__version__")
         version.text = (__version__)
