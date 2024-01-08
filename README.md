@@ -44,9 +44,7 @@ For XLSX:
 python3 run2.py -xt -ef [excel_file_path]
 ```
 
-To run transfer from downloaded google -g flag must be passed.
-If -ef not passed (python3 run2.py -g), default xls file used will be KoboTest(Responses_New).xlsx
-If -ef passed, file path form downloaded from google sheets can be passed in as a string. 
+To run transfer from downloaded google -gt flag must be passed. With gt, -ef must be passed, file path form downloaded from google sheets can be passed in as a string. 
 
 ## Edge Cases
 - order of questions in google form, and kobo form can be different
