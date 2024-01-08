@@ -62,28 +62,21 @@ If -ef passed, file path form downloaded from google sheets can be passed in as 
 - check differences in how data is saved when google form collects email addresses of responses
   
 ## Limitations
-- assumes that kobo project and google form question types, and order match (does not throw error but transferred submissios will be recorded incorrectly)
+- assumes that kobo project and google form question types and labels match (does not throw error but transferred submissions will be recorded incorrectly)
 - _submitted_by in Kobo will show username of account running the transfer, for all submissions.
+- Google sheets does not have a ‘start’ and ‘end’ like kobo does; it only records submission time. Submission time data will show up in ‘end’ column in kobo project.
 - submission_time in Kobo will show the time transfer was completed. 'end' shows time of response submission.
-- If transfer is run multiple times, repetitions will appear in kobo project
 - For time question types in kobo, time zone is recorded. Time question types in google sheets does not have the same feature. Time will not show UTC + ___. 
 - Text submissions will be changed: all commas will show up as a space character, all text will be lowercase
 
-- data could be recorded in Kobo as 'invalid' but code will not throw error in this case
-
-- Google sheets does not have a ‘start’ and ‘end’ like kobo does; it only records submission time. Submission time data will show up in ‘end’ column in kobo project. 
-- Does not account for empty submissions. Empty submission in xlsx will be transferred to kobo 
-- If ‘None’ is a response in Google submission, it will show up as blank after being transferred to kobo 
-
+- data could be recorded in Kobo as 'invalid' but code will not throw error in this case. For example, if date or time format is incorrect when uploading to a Kobo Date or Time question, it will save as "Invalid". 
+- If ‘None’ is a response in Google submission, it will show up as blank after being transferred to kobo
+  
 - Although submissions will not be duplicated across multiple runs of the
   script, if the submissions contain attachment files, the files are duplicated
   on the server.
-- The script does not check if the source and destination projects are identical
-  and will transfer submission data regardless.
 
 - Does not support Google question types multiple choice grid, tick box grid, and file attachments.
-- If date or time format is incorrect when uploading to a Kobo Date or Time question, it will save as "Invalid" in Kobo.
-- _submitted_by in Kobo will show username of account running the transfer, for all submissions
 
  ## Notes regarding media uploaded as a response in google forms
  
