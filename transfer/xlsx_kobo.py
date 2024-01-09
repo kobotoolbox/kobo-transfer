@@ -147,6 +147,33 @@ def repeat_groups(submission_xml, uuid, file_path):
         
             return submission_xml 
 
+
+#All questions in repeat group should have an equal number of responses, even if a response is blank. 
+#if question 1 in repeating group responses are {a, b, c}, question 2 responses need to have same number so indices match {1,,3}
+def initial_repeat(_uid, col_arr, cell_value):
+    #repeat/group_name/question
+    group_name = col_arr[1]
+    responses = cell_value.split(',')
+    print(responses)
+   
+    elements = _uid.findall('.//' + group_name)
+    print(elements)
+
+    #initial group element doesn't exist
+    if len(elements) == 0: 
+        for response in responses:
+            element = ET.SubElement(_uid, group_name)
+            subelement = ET.SubElement(element, col_arr[2])
+            subelement.text = response
+    else: 
+        if (len(elements) != len(responses)): 
+            raise Exception("Repeat group transfer failed. They should be saved in order with commas seperating each repeat response. No response should have a comma within it.")
+        for group_el, response in zip(elements, responses):
+            subelement = ET.SubElement(group_el, col_arr[2])
+            subelement.text = response
+
+    return _uid
+
 def general_xls_to_xml(excel_file_path, xml_file_path, submission_data, gtransfer = False):
     try: 
         workbook = openpyxl.load_workbook(excel_file_path)
@@ -209,9 +236,6 @@ def general_xls_to_xml(excel_file_path, xml_file_path, submission_data, gtransfe
         for col_num, cell_value in enumerate(row, start=1):
                 col_name = headers[col_num-1]
 
-                #if (gtransfer and col_name == "end"): 
-                 #       cell_element.text = format_timestamp(str(cell_value))
-                
                 if (gtransfer):
                     #multiple select question responses from google forms will only show up in kobo
                     #when selected choices are seperated by a space, and all lower case. 
@@ -238,6 +262,12 @@ def general_xls_to_xml(excel_file_path, xml_file_path, submission_data, gtransfe
                     _uid = group_element(_uid, str(col_name), str(cell_value))
                     continue
 
+                #repeat groups are saved like this:
+                #repeat/testname/group_question_1_text
+                if len(group_arr) == 3 and group_arr[0] == "repeat":
+                    _uid = initial_repeat(_uid, group_arr, str(cell_value))
+                    continue
+
                 if not (col_name.startswith("_")): 
                     cell_element = ET.SubElement(_uid, col_name)
 
@@ -253,7 +283,10 @@ def general_xls_to_xml(excel_file_path, xml_file_path, submission_data, gtransfe
         if (all_empty): #TODO
             print("Warning: Data may include one or more blank responses where no questions were answered.")
         
-        _uid = repeat_groups(_uid, formatted_uuid, excel_file_path)
+        
+        repeat_elements =  repeat_groups(_uid, formatted_uuid, excel_file_path)
+        if (repeat_elements != None):
+            _uid = repeat_elements
 
         version = ET.Element("__version__")
         version.text = (__version__)
@@ -296,7 +329,7 @@ def general_xls_to_xml(excel_file_path, xml_file_path, submission_data, gtransfe
 
     tree = ET.ElementTree(root)
 
-    #tree.write(xml_file_path) #for testing purposes
+    tree.write(xml_file_path) #for testing purposes
 
     workbook.close()
 
