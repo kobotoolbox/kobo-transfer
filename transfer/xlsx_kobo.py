@@ -160,7 +160,8 @@ def general_xls_to_xml(excel_file_path, xml_file_path, submission_data, gtransfe
     except Exception as e:
         print(f"⚠️ Something went wrong when reading xlsx file: {e}")
 
-    sheet = workbook.active
+    #select first sheet
+    sheet = workbook.worksheets[0]
 
     uid = submission_data["asset_uid"]
     formhubuuid = submission_data["formhub_uuid"]
