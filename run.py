@@ -3,6 +3,7 @@
 import argparse
 import json
 import sys
+import requests
 
 from helpers.config import Config
 from transfer.media import get_media, del_media
@@ -14,6 +15,53 @@ from transfer.xml import (
 )
 
 
+def get_uuids(config_loc, params):
+    def get_uuids_rec(uuids=[], url=None, params=None, headers=None):
+        if 'fields' not in url:
+            res = requests.get(
+                url=url,
+                params=params,
+                headers=headers
+        )
+        else:
+            res = requests.get(url=url, headers=headers)
+        data = res.json()
+        uuids += [i['_uuid'] for i in data['results']]
+        next_ = data['next']
+        if next_ is not None:
+            get_uuids_rec(uuids, next_)
+
+    uuids = []
+    get_uuids_rec(uuids=uuids, url=config_loc['data_url'], params=params, headers=config_loc['headers'])
+    return uuids
+
+
+def chunker(seq, size):
+    for i in range(0, len(seq), size):
+        yield seq[i:i + size]
+
+
+def get_params(uuids=[], limit=10000, fields=[]):
+    query = json.dumps({"_uuid": {"$in": uuids}})
+    res = {
+        'format': 'json',
+        'limit': limit,
+        'fields': json.dumps(fields),
+    }
+    if uuids:
+        res['query'] = query
+    return res
+
+
+def get_diff_uuids(config):
+    # TODO: make limit dynamic
+    params = get_params(fields=['_uuid'], limit=1000)
+    src_uuids = get_uuids(config_loc=config.src, params=params)
+    dest_uuids = get_uuids(config_loc=config.dest, params=params)
+
+    return list(set(src_uuids).difference(set(dest_uuids)))
+
+
 def main(
     limit,
     last_failed=False,
@@ -21,18 +69,32 @@ def main(
     regenerate=False,
     quiet=False,
     validate=True,
+    sync=False,
+    chunk_size=1000,
     config_file=None,
 ):
     config = Config(config_file=config_file, validate=validate)
     config_src = config.src
 
-    print('📸 Getting all submission media', end=' ', flush=True)
-    get_media()
-
     xml_url_src = config_src['xml_url'] + f'?limit={limit}'
 
     if last_failed and config.last_failed_uuids:
         xml_url_src += f'&query={json.dumps(config.data_query)}'
+
+    if sync:
+        diff_uuids = get_diff_uuids(config)
+        if not diff_uuids:
+            print('👌 Projects are in-sync')
+            sys.exit()
+        query = json.dumps({"_uuid": {"$in": diff_uuids}})
+
+        xml_url_src += f'&query={query}'
+
+    print('📸 Getting all submission media', end=' ', flush=True)
+    if sync:
+        get_media(query=query)
+    else:
+        get_media()
 
     all_results = []
     submission_edit_data = get_submission_edit_data()
@@ -109,6 +171,20 @@ if __name__ == '__main__':
         help='Keep submission attachments rather than cleaning up after transfer.',
     )
     parser.add_argument(
+        '--sync',
+        '-s',
+        default=False,
+        action='store_true',
+        help='Sync src and dest project data',
+    )
+    parser.add_argument(
+        '--chunk-size',
+        '-cs',
+        default=1000,
+        type=int,
+        help='Number of submissions included in each batch for sync query filters.',
+    )
+    parser.add_argument(
         '--quiet',
         '-q',
         default=False,
@@ -125,6 +201,8 @@ if __name__ == '__main__':
             keep_media=args.keep_media,
             quiet=args.quiet,
             validate=not args.no_validate,
+            sync=args.sync,
+            chunk_size=args.chunk_size,
             config_file=args.config_file,
         )
     except KeyboardInterrupt:
