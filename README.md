@@ -88,7 +88,6 @@ With general data in xlsx, -xt can be passed in.
 - submission_time in Kobo will show the time transfer was completed. 'end' shows time of response submission.
 - For time question types in kobo, time zone is recorded. Time question types in google sheets does not have the same feature. Time will not show UTC + ___. 
 - Text submissions will be changed: all commas will show up as a space character, all text will be lowercase
-- 
 - data could be recorded in Kobo as 'invalid' but code will not throw error in this case. For example, if date or time format is incorrect when uploading to a Kobo Date or Time question, it will save as "Invalid". 
 - If ‘None’ is a response in Google submission, it will show up as blank after being transferred to kobo
 - Although submissions will not be duplicated across multiple runs of the
