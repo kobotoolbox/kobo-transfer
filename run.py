@@ -75,31 +75,8 @@ def main(
 ):
     config = Config(config_file=config_file, validate=validate)
     config_src = config.src
-
-    xml_url_src = config_src['xml_url'] + f'?limit={limit}'
-
-    if last_failed and config.last_failed_uuids:
-        xml_url_src += f'&query={json.dumps(config.data_query)}'
-
-    if sync:
-        diff_uuids = get_diff_uuids(config)
-        if not diff_uuids:
-            print('👌 Projects are in-sync')
-            sys.exit()
-        query = json.dumps({"_uuid": {"$in": diff_uuids}})
-
-        xml_url_src += f'&query={query}'
-
-    print('📸 Getting all submission media', end=' ', flush=True)
-    if sync:
-        get_media(query=query)
-    else:
-        get_media()
-
     all_results = []
     submission_edit_data = get_submission_edit_data()
-
-    print('📨 Transferring submission data')
 
     def transfer(all_results, url=None):
         parsed_xml = get_src_submissions_xml(xml_url=url)
@@ -112,10 +89,45 @@ def main(
             regenerate=regenerate,
         )
         all_results += results
+
         if next_ != 'None' and next_ is not None:
             transfer(all_results, next_)
 
-    transfer(all_results, xml_url_src)
+    xml_url_src = config_src['xml_url'] + f'?limit={limit}'
+
+    if last_failed and config.last_failed_uuids:
+        xml_url_src += f'&query={json.dumps(config.data_query)}'
+
+    if sync:
+        print('🪪  Getting _uuid values from src and dest projects')
+        diff_uuids = get_diff_uuids(config)
+
+        if not diff_uuids:
+            print('👌 Projects are in-sync')
+            sys.exit()
+
+        # run through chunks of uuids
+        first_run = True
+        for chunked_uuids in chunker(diff_uuids, chunk_size):
+            query = json.dumps({"_uuid": {"$in": chunked_uuids}})
+            xml_url_src = config_src['xml_url'] + f'?limit={limit}&query={query}'
+
+            if first_run:
+                print('📸 Getting all submission media', end=' ', flush=True)
+            get_media(query=query)
+
+            if first_run:
+                print('📨 Transferring submission data')
+                first_run = False
+            transfer(all_results, xml_url_src)
+
+
+    if not sync:
+        print('📸 Getting all submission media', end=' ', flush=True)
+        get_media()
+
+        print('📨 Transferring submission data')
+        transfer(all_results, xml_url_src)
 
     if not keep_media:
         del_media()
