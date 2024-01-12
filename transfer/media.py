@@ -11,6 +11,28 @@ import time
 from helpers.config import Config
 
 
+import os
+import shutil
+
+
+
+def rename_media_folder(submission_data, uuid, rowNum):
+    current_attachments_path = os.path.join(
+        Config.ATTACHMENTS_DIR, submission_data['asset_uid'], str(rowNum)
+    )
+    if (os.path.exists(current_attachments_path)):   
+        new_attachments_path = os.path.join(
+            Config.ATTACHMENTS_DIR, submission_data['asset_uid'], str(uuid)
+        )
+        print(current_attachments_path)
+        
+        try:
+            # Move the folder to the new path
+            shutil.move(current_attachments_path, new_attachments_path)
+
+        except Exception as e: #TODO
+            print(f"Error: {e}")
+
 def del_media():
     config = Config().src
     media_path = os.path.join(Config.ATTACHMENTS_DIR, config['asset_uid'])

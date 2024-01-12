@@ -6,7 +6,7 @@ import sys
 
 from helpers.config import Config
 from transfer.media import get_media, del_media
-from transfer.xlsx_kobo import google_xls_to_xml, general_xls_to_xml
+from transfer.xlsx_kobo import general_xls_to_xml
 from transfer.xml import (
     get_src_submissions_xml,
     get_submission_edit_data,
@@ -32,6 +32,7 @@ def main(
     print('📸 Getting all submission media', end=' ', flush=True)
     get_media() 
     xml_url_src = config_src['xml_url'] + f'?limit={limit}'
+    
 
     if last_failed and config.last_failed_uuids:
         xml_url_src += f'&query={json.dumps(config.data_query)}'
@@ -41,11 +42,10 @@ def main(
 
     xml_file_path = './output.xml' #TODO: (for testing purposes)
 
+
     def transfer(all_results, url=None):
-        if (gtransfer):
-            parsed_xml = google_xls_to_xml(excel_file, xml_file_path, submission_edit_data)
-        elif (xtransfer):
-            parsed_xml = general_xls_to_xml(excel_file, xml_file_path, submission_edit_data)
+        if (xtransfer or gtransfer):
+            parsed_xml = general_xls_to_xml(excel_file, xml_file_path, submission_edit_data, gtransfer)
         else: 
             parsed_xml = get_src_submissions_xml(xml_url=url)
         
