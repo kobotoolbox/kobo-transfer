@@ -1,6 +1,19 @@
 # kobo-transfer
 
 Transfer submissions from XLSX Form to Kobo Project
+Demo: https://drive.google.com/file/d/1yMcsEKqOH3L09O00urFko3iB77PABuFh/view?usp=sharing 
+
+## Usage
+
+For XLSX: 
+```bash
+python3 run2.py -xt -ef [excel_file_path]
+```
+
+For data downloaded from Google Form:
+```bash
+python3 run2.py -gt -ef [excel_file_path]
+```
 
 ## Requirements
 
@@ -48,21 +61,6 @@ To download google form responses as xlsx:
 
 - if data downloaded from kobo as xlsx with XML values and headers, repeat groups span across multiple tabs. Script supports this, and data for these repeat group responses can be edited in the respective tabs and reuploaded.
 - to minimise errors with formatting when data needs to be cleaned, it's best to do initial transfer from xlsx, then download the kobo data from xlsx with XML values and headers. The downloaded xlsx from Kobo is best to work from since all headers will be in the format the script expects. 
-
-## Usage
-
-For Google Form:
-```bash
-python3 run2.py -gt -ef [excel_file_path]
-```
-For XLSX: 
-```bash
-python3 run2.py -xt -ef [excel_file_path]
-```
-
-To run transfer from downloaded google form responses -gt flag must be passed.
-With general data in xlsx, -xt can be passed in.
-- ef flag is required with both, and the file path for the excel file can be passed in as a string. 
 
 ## Edge Cases
 - order of questions in google form, and kobo form can be different
