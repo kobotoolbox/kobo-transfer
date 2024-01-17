@@ -40,12 +40,10 @@ def main(
     all_results = []
     submission_edit_data = get_submission_edit_data() 
 
-    xml_file_path = './output.xml' #TODO: (for testing purposes)
-
 
     def transfer(all_results, url=None):
         if (xtransfer or gtransfer):
-            parsed_xml = general_xls_to_xml(excel_file, xml_file_path, submission_edit_data, gtransfer)
+            parsed_xml = general_xls_to_xml(excel_file, submission_edit_data, gtransfer)
         else: 
             parsed_xml = get_src_submissions_xml(xml_url=url)
         
