@@ -213,7 +213,8 @@ def single_submission_xml( gtransfer, _uid, col_name, cell_value, all_empty, for
         _uid = initial_repeat(_uid, group_arr, str(cell_value))
         return all_empty, formatted_uuid
                 
-    if not (col_name.startswith("_")): 
+
+    if not (col_name.startswith("_")):  #column automatically generated with kobo (this is after data has been downloaded from kobo)
         cell_element = ET.SubElement(_uid, col_name)
         if (col_name == "end" or col_name == "start"):
             if (gtransfer):

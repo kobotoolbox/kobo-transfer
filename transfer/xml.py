@@ -44,7 +44,6 @@ def get_src_submissions_xml(xml_url):
         raise Exception('Something went wrong')
     return ET.fromstring(res.text)
 
-#next 3 methods from #15
 def get_all_values_from_xml(elem):
     '''
     Return a list of all the values in the submission's XML
