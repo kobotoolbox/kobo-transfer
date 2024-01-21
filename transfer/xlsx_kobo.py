@@ -1,23 +1,12 @@
-import glob
 import string
-import io
-import os
-import requests
-
 from datetime import datetime
 from xml.etree import ElementTree as ET
-from dateutil.parser import ParserError
-import re
-from utils.text import get_valid_filename
-
 import openpyxl
 import xml.etree.ElementTree as ET
 from .media import rename_media_folder
 import pandas as pd
-from datetime import datetime, timedelta
-
+from datetime import datetime
 from dateutil import parser
-
 from .xml import generate_new_instance_id
 from helpers.config import Config
 
@@ -57,8 +46,6 @@ def group_element(_uid, group, cell_value):
     group_name = group.split("/")
 
     element = _uid.find('.//' + group_name[0])
-
-    #element = _uid.find(f'.//{group_name[0]}')
     if (element == None):
         element = ET.SubElement(_uid, group_name[0])
 
@@ -166,7 +153,6 @@ def format_xml_from_google(cell_value):
     return cell_value
 
 def meta_element(_uid, formatted_uuid):
-    #TODO: pull this out into a separate method? 
     """meta tag 
           <meta>
                 <instanceID>uuid:a0ea37ef-ac71-434b-93b6-1713ef4c367f</instanceID>
@@ -261,12 +247,12 @@ def general_xls_to_xml(excel_file_path, submission_data, gtransfer = False):
 
         all_empty = True
         formatted_uuid = "uuid:"
+
         # Iterate through cells in the row and create corresponding XML elements
         for col_num, cell_value in enumerate(row, start=1):
                 col_name = headers[col_num-1]
                 all_empty, formatted_uuid = single_submission_xml(gtransfer, _uid, col_name, cell_value, all_empty, formatted_uuid)
         
-
         if (all_empty):
             print("Warning: Data may include one or more blank responses where no questions were answered.")
         #iterate through other sheets to create repeat groups, and append to xml
@@ -283,7 +269,6 @@ def general_xls_to_xml(excel_file_path, submission_data, gtransfer = False):
         #for initial transfer (without uuids), attachments are saved with row numbers
         #row number folder is renamed to uuid to complete transfer to kobo and associate attachment to specific response
         rename_media_folder(submission_data, formatted_uuid[len("uuid:"):], row_num)
-        #_uid.append(meta)
         results.append(_uid)
         num_results += 1
     
