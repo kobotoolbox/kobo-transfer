@@ -29,8 +29,8 @@ def main(
     config = Config(config_file=config_file, validate=validate)
     config_src = config.src
    
-    print('📸 Getting all submission media', end=' ', flush=True)
-    get_media() 
+    #print('📸 Getting all submission media', end=' ', flush=True)
+    #get_media() 
     xml_url_src = config_src['xml_url'] + f'?limit={limit}'
     
 
@@ -63,8 +63,8 @@ def main(
         
     transfer(all_results, xml_url_src)
 
-    if not keep_media:
-        del_media()
+    #if not keep_media:
+     #   del_media()
 
     print('✨ Done')
     print_stats(all_results)

@@ -165,7 +165,7 @@ def format_xml_from_google(cell_value):
     cell_value = format_date(cell_value)
     return cell_value
 
-def meta_element(formatted_uuid):
+def meta_element(_uid, formatted_uuid):
     #TODO: pull this out into a separate method? 
     """meta tag 
           <meta>
@@ -180,10 +180,12 @@ def meta_element(formatted_uuid):
     deprecatedId = ET.SubElement(meta, "deprecatedID")
     instanceId.text = formatted_uuid
     deprecatedId.text = formatted_uuid
-    return meta
+
+    _uid.append(meta)
+    return formatted_uuid
 
 
-def single_submission_xml( gtransfer, _uid, col_name, cell_value):
+def single_submission_xml( gtransfer, _uid, col_name, cell_value, all_empty, formatted_uuid):
     if (gtransfer):
         cell_value = format_xml_from_google(cell_value)
      
@@ -203,14 +205,13 @@ def single_submission_xml( gtransfer, _uid, col_name, cell_value):
     group_arr = col_name.split('/')
     if len(group_arr) == 2:
         _uid = group_element(_uid, str(col_name), str(cell_value))
-        #continue
-        return all_empty
+        return all_empty, formatted_uuid
 
     #repeat groups, for initial data transfer to kobo (without uuid) are saved like this: repeat/testname/group_question_1_text
     #therefore, column header for a repeat group will have three elements when split()
     if len(group_arr) == 3 and group_arr[0] == "repeat":
         _uid = initial_repeat(_uid, group_arr, str(cell_value))
-        return all_empty
+        return all_empty, formatted_uuid
                 
     if not (col_name.startswith("_")): 
         cell_element = ET.SubElement(_uid, col_name)
@@ -220,8 +221,8 @@ def single_submission_xml( gtransfer, _uid, col_name, cell_value):
             elif (cell_value != ""):
                 cell_value = cell_value.isoformat()                
         cell_element.text = str(cell_value)
-
-    return all_empty
+            
+    return all_empty, formatted_uuid
 
 def general_xls_to_xml(excel_file_path, submission_data, gtransfer = False):
     workbook = open_xlsx(excel_file_path)
@@ -262,52 +263,11 @@ def general_xls_to_xml(excel_file_path, submission_data, gtransfer = False):
         # Iterate through cells in the row and create corresponding XML elements
         for col_num, cell_value in enumerate(row, start=1):
                 col_name = headers[col_num-1]
-                #all_empty =  single_submission_xml(gtransfer, _uid, col_name, cell_value)
-
-                
-                col_name = headers[col_num-1]
-
-                if (gtransfer):
-                    cell_value = format_xml_from_google(cell_value)
-            
-                if cell_value is None or cell_value == "none" or cell_value == "None":  
-                    cell_value = ""
-                else:
-                    all_empty = False
+                all_empty, formatted_uuid = single_submission_xml(gtransfer, _uid, col_name, cell_value, all_empty, formatted_uuid)
         
-                #if xlsx data is downloaded from kobo, it will contain this column
-                if (col_name == "_uuid"):
-                    if cell_value == "": #if there is no uuid specified, new one will be generated
-                        formatted_uuid = formatted_uuid + generate_new_instance_id()[1]
-                    else:
-                        formatted_uuid = formatted_uuid + str(cell_value)
-                
-                #column headers that include / indicate {group_name}/{question}
-                group_arr = col_name.split('/')
-                if len(group_arr) == 2:
-                    _uid = group_element(_uid, str(col_name), str(cell_value))
-                    continue
-
-                #repeat groups, for initial data transfer to kobo (without uuid) are saved like this: repeat/testname/group_question_1_text
-                #therefore, column header for a repeat group will have three elements when split()
-                if len(group_arr) == 3 and group_arr[0] == "repeat":
-                    _uid = initial_repeat(_uid, group_arr, str(cell_value))
-                    continue
-                
-                if not (col_name.startswith("_")): 
-                    cell_element = ET.SubElement(_uid, col_name)
-                    if (col_name == "end" or col_name == "start"):
-                        if (gtransfer):
-                            cell_value = format_timestamp(str(cell_value))
-                        elif (cell_value != ""):
-                            cell_value = cell_value.isoformat()
-                        
-                    cell_element.text = str(cell_value)
-                
 
         if (all_empty):
             print("Warning: Data may include one or more blank responses where no questions were answered.")
-        
         #iterate through other sheets to create repeat groups, and append to xml
         repeat_elements =  repeat_groups(_uid, formatted_uuid, workbook)
         if (repeat_elements != None):
@@ -317,12 +277,12 @@ def general_xls_to_xml(excel_file_path, submission_data, gtransfer = False):
         version.text = (__version__)
         _uid.append(version)
 
+        formatted_uuid = meta_element(_uid, formatted_uuid)
+
         #for initial transfer (without uuids), attachments are saved with row numbers
         #row number folder is renamed to uuid to complete transfer to kobo and associate attachment to specific response
         rename_media_folder(submission_data, formatted_uuid[len("uuid:"):], row_num)
-
-        meta = meta_element(formatted_uuid)
-        _uid.append(meta)
+        #_uid.append(meta)
         results.append(_uid)
         num_results += 1
     
