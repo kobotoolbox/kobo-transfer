@@ -56,7 +56,7 @@ To download google form responses as xlsx:
 
 ### Notes for General XLSX Data Transfer
 - for initial transfer from xlsx to kobo, when there is no uuid, the column header for repeat groups must be repeat/{group name}/{xml header for question in repeating group}. Each question in repeat group must have its own column in xlsx.
-- to associate media with a specific response/submission for initial transfer, when there is no _uuid column, row number of submission can be used. Media for the submission can be saved in file path ./attachments/{asset_uid}/{row_number}. --keep_media flag needs to be passed to avoid cleanup after transfer.
+- to associate media with a specific response/submission for initial transfer, when there is no _uuid column, row number of submission can be used. Media for the submission can be saved in file path ./attachments/{asset_uid}/{row_number}.
 - for logical groups, column header can be {group name}/{xml header for question in repeating group}. The group name in the header must match Data Column Name in Kobo project.
 - for ranking data, headers must be in this format: {xml header for question}/_1st_choice, {xml header for question}/_2nd_choice, {xml header for question}/_3rd_choice, and so on.
 
