@@ -143,7 +143,8 @@ def formhub_element(uid, NSMAP, formhubuuid):
         return _uid
 
 def format_xml_from_google(cell_value):
-    #multiple select question responses from google forms will only show up in kobo
+    #multiple select question responses from google forms are sepearated by ',' 
+    #to show up in kobo, responses must be lowercase, spaces must be replaced with '_' and seperated by ' '
     if ',' in cell_value:
         options_selected = cell_value.split(',')
         for i in range(len(options_selected)):
