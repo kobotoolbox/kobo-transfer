@@ -51,7 +51,7 @@ To download google form responses as xlsx:
    Open Google Form data (Responses tab) in Google Sheets, and download as xlsx from there (file → download as → microsoft excel (xlsx))
 
 - As long as google question labels match kobo question labels, they don't need to be edited in the downloaded xlsx form before running transfer. Timestamp is automatically saved in Google Form responses, and the time format nor the column label need to be edited. Transfer tool will record this as the 'end' time when saving to Kobo project. 
-- Each of the selected items for multiple select responses in Google Forms, are saved in a single cell and separated by commas when downloaded. This does not need to be edited before transfer. 
+- Each of the selected items for multiple select responses in Google Forms, are saved in a single cell and separated by commas when downloaded. If only one option is selected, need to add ',' at the end of the response.
 - Time and Date question type responses also don't need to be edited. Running the transfer will convert them to the correct format for Kobo.
 
 ### Notes for General XLSX Data Transfer
