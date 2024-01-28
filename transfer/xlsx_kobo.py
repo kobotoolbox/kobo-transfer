@@ -144,9 +144,13 @@ def formhub_element(uid, NSMAP, formhubuuid):
 
 def format_xml_from_google(cell_value):
     #multiple select question responses from google forms will only show up in kobo
-    #when selected choices are seperated by a space, and all lower case. 
-    cell_value = str(cell_value).lower()   
-    cell_value = str(cell_value).replace(",", " ")
+    if ',' in cell_value:
+        options_selected = cell_value.split(',')
+        for i in range(len(options_selected)):
+            options_selected[i] = options_selected[i].strip().lower()
+            options_selected[i] = options_selected[i].replace(' ', '_')
+        cell_value = ' '.join(options_selected)
+        
     #formatting date and time to be compatible with kobo are specific to how google forms saves data
     cell_value = format_time(str(cell_value))
     cell_value = format_date(cell_value)
@@ -173,7 +177,7 @@ def meta_element(_uid, formatted_uuid):
 
 def single_submission_xml( gtransfer, _uid, col_name, cell_value, all_empty, formatted_uuid):
     if (gtransfer):
-        cell_value = format_xml_from_google(cell_value)
+        cell_value = format_xml_from_google(str(cell_value))
      
     if cell_value is None or cell_value == "none" or cell_value == "None":  
         cell_value = ""
