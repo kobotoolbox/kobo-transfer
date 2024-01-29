@@ -11,10 +11,14 @@ from transfer.xml import (
     get_submission_edit_data,
     print_stats,
     transfer_submissions,
-    xls_to_xml
 )
+from transfer.xlsx_kobo import general_xls_to_xml
+
 
 def main(
+    gtransfer,
+    xtransfer,
+    excel_file,
     limit,
     last_failed=False,
     keep_media=False,
@@ -23,12 +27,13 @@ def main(
     validate=True,
     config_file=None,
 ):
- 
+
     config = Config(config_file=config_file, validate=validate)
     config_src = config.src
 
-    print('📸 Getting all submission media', end=' ', flush=True)
-    get_media()
+    if not gtransfer and not xtransfer:
+        print('📸 Getting all submission media', end=' ', flush=True)
+        get_media()
 
     xml_url_src = config_src['xml_url'] + f'?limit={limit}'
 
@@ -42,7 +47,11 @@ def main(
     print('📨 Transferring submission data')
 
     def transfer(all_results, url=None):
-        parsed_xml = get_src_submissions_xml(xml_url=url)
+        if (xtransfer or gtransfer):
+            parsed_xml = general_xls_to_xml(excel_file, submission_edit_data, gtransfer)
+        else:
+            parsed_xml = get_src_submissions_xml(xml_url=url)
+
         submissions = parsed_xml.findall(f'results/{config_src["asset_uid"]}')
         next_ = parsed_xml.find('next').text
         results = transfer_submissions(
@@ -56,9 +65,10 @@ def main(
             transfer(all_results, next_)
         
     transfer(all_results, xml_url_src)
-
-    if not keep_media:
-        del_media()
+    
+    if not xtransfer and not gtransfer:
+        if not keep_media:
+            del_media()
 
     print('✨ Done')
     print_stats(all_results)
@@ -69,8 +79,26 @@ if __name__ == '__main__':
         description='A CLI tool to transfer submissions between projects with identical XLSForms.'
     )
 
-    args = parser.parse_args()
-
+   # args = parser.parse_args()
+    parser.add_argument( 
+        '--google-transfer',
+        '-gt',
+        default = False,
+        action = 'store_true', 
+        help='Complete transfer from Google Form data to Kobo project.', #TODO
+    )
+    parser.add_argument( 
+        '--excel-transfer',
+        '-xt',
+        default = False,
+        action = 'store_true', 
+        help='Complete transfer from any xlsx form to Kobo project.', #TODO
+    )
+    parser.add_argument( 
+        '--excel-file',
+        '-ef', 
+        help='Excel file path for data to upload', #TODO
+    )
     parser.add_argument(
         '--limit',
         '-l',
@@ -113,7 +141,6 @@ if __name__ == '__main__':
         action='store_true',
         help='Keep submission attachments rather than cleaning up after transfer.',
     )
-
     parser.add_argument(
         '--quiet',
         '-q',
@@ -123,8 +150,14 @@ if __name__ == '__main__':
     )
     args = parser.parse_args()
 
+    if (args.excel_transfer and not args.excel_file) or (args.google_transfer and not args.excel_file):
+        parser.error("If --excel-transfer (-xt) or --google-transfer (-gt) is passed, --excel-file (-xt) is required.")
+
     try:
         main(
+            gtransfer= args.google_transfer,
+            xtransfer = args.excel_transfer,
+            excel_file=args.excel_file,
             limit=args.limit,
             last_failed=args.last_failed,
             regenerate=args.regenerate_uuids,
@@ -138,3 +171,5 @@ if __name__ == '__main__':
         print('🛑 Stopping run')
         # Do something here so we can pick up again where this leaves off
         sys.exit()
+
+
