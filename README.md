@@ -78,7 +78,7 @@ To download google form responses as xlsx:
 ## Limitations
 - If transferring from google form xlsx data (running -gt), submissions will be duplicated each time the script is run. Even when google form xlsx data is uploaded, edited, and then reuploaded, it will show up as a new submission instead of editing the one in kobo. To avoid this, after transferring from google form xlsx into kobo once, download the kobo data in xlsx form and edit/reupload that one with the flag -xt.
 - Similarly, if running -xt for initial xlsx data without uuid, submissions will be duplicated each time script is run. To avoid, after initial transfer, download data from kobo as xlsx and edit/work with that. 
-\n
+<br>
 - assumes that kobo project and xlsx form question types and labels match (does not throw error but transferred submissions will be recorded incorrectly)
 - any data transferred will be accepted by kobo. For example, if question type is number in kobo, but submission transferred is text/string, it will be saved as such. For questions types such as dropdown/select one, responses in xlsx can be any string and kobo will save (regardless of whether or not it is an option in the kobo project). 
 - _submitted_by in Kobo will show username of account running the transfer, for all submissions.
@@ -86,7 +86,7 @@ To download google form responses as xlsx:
 - data could be recorded in Kobo as 'invalid' but code will not throw error in this case. For example, if date or time format is incorrect when uploading to a Kobo Date or Time question, it will save as "Invalid". 
 - If ‘None’ is a response in submission, it will show up as blank after being transferred to kobo
 - Although submissions will not be duplicated across multiple runs of the script, if the submissions contain attachment files, the files are duplicated on the server.
-\n
+<br>
 - if running -gt, responses and text submissions can not contain ',' or '/' since data will be transferred to Kobo incorrectly.
 - if running -gt, text submissions will be changed; all commas will show up as a space character, all text will be lowercase
 - Does not support Google question types multiple choice grid, tick box grid, and file attachments.
