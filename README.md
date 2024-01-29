@@ -8,12 +8,12 @@ Demo: https://drive.google.com/file/d/1yMcsEKqOH3L09O00urFko3iB77PABuFh/view?usp
 
 For XLSX: 
 ```bash
-python3 run2.py -xt -ef [excel_file_path]
+python3 run.py -xt -ef [excel_file_path]
 ```
 
 For data downloaded from Google Form:
 ```bash
-python3 run2.py -gt -ef [excel_file_path]
+python3 run.py -gt -ef [excel_file_path]
 ```
 
 ## Requirements
@@ -79,21 +79,26 @@ To download google form responses as xlsx:
 - If transferring from google form xlsx data (running -gt), submissions will be duplicated each time the script is run. Even when google form xlsx data is uploaded, edited, and then reuploaded, it will show up as a new submission instead of editing the one in kobo. To avoid this, after transferring from google form xlsx into kobo once, download the kobo data in xlsx form and edit/reupload that one with the flag -xt.
 - Similarly, if running -xt for initial xlsx data without uuid, submissions will be duplicated each time script is run. To avoid, after initial transfer, download data from kobo as xlsx and edit/work with that. 
 
-- if running -gt, responses and text submissions can not contain ',' or '/' since data will be transferred to Kobo incorrectly.
 - assumes that kobo project and xlsx form question types and labels match (does not throw error but transferred submissions will be recorded incorrectly)
 - any data transferred will be accepted by kobo. For example, if question type is number in kobo, but submission transferred is text/string, it will be saved as such. For questions types such as dropdown/select one, responses in xlsx can be any string and kobo will save (regardless of whether or not it is an option in the kobo project). 
 - _submitted_by in Kobo will show username of account running the transfer, for all submissions.
-- Google sheets does not have a ‘start’ and ‘end’ like kobo does; it only records submission time. Submission time data will show up in ‘end’ column in kobo project.
 - submission_time in Kobo will show the time transfer was completed. 'end' shows time of response submission.
-- For time question types in kobo, time zone is recorded. Time question types in google sheets does not have the same feature. Time will not show UTC + ___. 
-- Text submissions will be changed: all commas will show up as a space character, all text will be lowercase
 - data could be recorded in Kobo as 'invalid' but code will not throw error in this case. For example, if date or time format is incorrect when uploading to a Kobo Date or Time question, it will save as "Invalid". 
-- If ‘None’ is a response in Google submission, it will show up as blank after being transferred to kobo
-- Although submissions will not be duplicated across multiple runs of the
-  script, if the submissions contain attachment files, the files are duplicated
-  on the server.
-- Does not support Google question types multiple choice grid, tick box grid, and file attachments.
+- If ‘None’ is a response in submission, it will show up as blank after being transferred to kobo
+- Although submissions will not be duplicated across multiple runs of the script, if the submissions contain attachment files, the files are duplicated on the server.
 
+- if running -gt, responses and text submissions can not contain ',' or '/' since data will be transferred to Kobo incorrectly.
+- if running -gt, text submissions will be changed; all commas will show up as a space character, all text will be lowercase
+- Does not support Google question types multiple choice grid, tick box grid, and file attachments.
+- Google sheets does not have a ‘start’ and ‘end’ like kobo does; it only records submission time. Submission time data will show up in ‘end’ column in kobo project when running -gt
+- For time question types in kobo, time zone is recorded. Time question types in google sheets does not have the same feature. Time will not show UTC + ___. 
+
+ ## Media Upload
+Demo walks through this process:
+ - for initial data upload, create folder named attachments, with subfolder name being the asset uid of form in kobo. To associate media with a specific submission, create subfolders named after the row number of the submission in the xlsx. For example, without initially having a uuid (in a case where data is imported from a different source), the file path for the media would be attachments/aMhhwTacmk9PLEQuv9etDS/2. Media within that folder must match the filename in xlsx form cell exactly.
+- if data already has uuids, create attachments folder with a subfolder asset id. Within asset id subfolder, create folders each named after uuid of a response. Media associated with each uuid should be within that folder.
+- If run.py is run with the attachments folder, media should save in kobo correctly. 
+ 
  ## Notes regarding media uploaded as a response in google forms
 Google form attachments are saved in a folder in Google Drive and folders are categorised by questions. If the google drive folder path is specified, it's possible to have all the images transferred to Kobo and have them show up in Gallery View. 
 For the filter view of these images, where a question is selected in Kobo, and images submitted for that question appears, user would need to manually specify which google drive folder path corresponds to each question. It's also not possible to link an image to a specific submission. 
