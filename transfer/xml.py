@@ -22,6 +22,7 @@ import pytz
 from dateutil import parser
 
 from .media import get_media, del_media
+from utils.text import get_valid_filename
 from helpers.config import Config
 
 def get_submission_edit_data():
@@ -35,14 +36,6 @@ def get_submission_edit_data():
     }
     return data
 
-def get_src_submissions_xml(xml_url):
-    config = Config().src
-    res = requests.get(
-        url=xml_url, headers=config['headers'], params=config['params']
-    )
-    if not res.status_code == 200:
-        raise Exception('Something went wrong')
-    return ET.fromstring(res.text)
 
 def get_all_values_from_xml(elem):
     '''
@@ -63,6 +56,16 @@ def get_xml_value_media_mapping(values):
     are stripped of special characters.
     '''
     return {get_valid_filename(v):v for v in values}
+
+
+def get_src_submissions_xml(xml_url):
+    config = Config().src
+    res = requests.get(
+        url=xml_url, headers=config['headers'], params=config['params']
+    )
+    if not res.status_code == 200:
+        raise Exception('Something went wrong')
+    return ET.fromstring(res.text)
 
 
 def submit_data(xml_sub, _uuid, original_uuid, xml_value_media_map):
@@ -86,7 +89,6 @@ def submit_data(xml_sub, _uuid, original_uuid, xml_value_media_map):
         files=files,
         headers=config['headers'],
     )
-
     session = requests.Session()
     res = session.send(res.prepare())
     return res.status_code
@@ -126,9 +128,9 @@ def generate_new_instance_id() -> (str, str):
 
 def transfer_submissions(all_submissions_xml, asset_data, quiet, regenerate):
     results = []
-
     for submission_xml in all_submissions_xml:
 
+        # Use the same UUID so that duplicates are rejected
         original_uuid = submission_xml.find('meta/instanceID').text.replace(
             'uuid:', ''
         )
@@ -156,12 +158,11 @@ def transfer_submissions(all_submissions_xml, asset_data, quiet, regenerate):
         xml_value_media_map = get_xml_value_media_mapping(submission_values)
 
         result = submit_data(
-                ET.tostring(submission_xml),
-                _uuid,
-                original_uuid,
-                xml_value_media_map,
-            )
-        
+            ET.tostring(submission_xml),
+            _uuid,
+            original_uuid,
+            xml_value_media_map,
+        )
         if result == 201:
             msg = f'✅ {_uuid}'
         elif result == 202:
@@ -172,8 +173,6 @@ def transfer_submissions(all_submissions_xml, asset_data, quiet, regenerate):
         if not quiet:
             print(msg)
         results.append(result)
-    
-
     return results
 
 
