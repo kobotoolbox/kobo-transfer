@@ -32,6 +32,15 @@ pip install openpyxl pandas requests xmltodict python-dateutil
 
 3. Copy `sample-config.json` to `config.json` and add your configuration details
    for the source (`src`) and destination (`dest`) projects. If transfering from xls to kobo, duplicate src and destination url and token.
+   
+### Notes for General XLSX Data Transfer
+- for initial transfer from xlsx to kobo, when there is no uuid, the column header for repeat groups must be repeat/{group name}/{xml header for question in repeating group}. Each question in repeat group must have its own column in xlsx.
+- to associate media with a specific response/submission for initial transfer, when there is no _uuid column, row number of submission can be used. Media for the submission can be saved in file path ./attachments/{asset_uid}/{row_number}.
+- for logical groups, column header can be {group name}/{xml header for question in repeating group}. The group name in the header must match Data Column Name in Kobo project.
+- for ranking data, headers must be in this format: {xml header for question}/_1st_choice, {xml header for question}/_2nd_choice, {xml header for question}/_3rd_choice, and so on.
+
+- if data downloaded from kobo as xlsx with XML values and headers, repeat groups span across multiple tabs. Script supports this, and data for these repeat group responses can be edited in the respective tabs and reuploaded.
+- to minimise errors with formatting when data needs to be cleaned, it's best to do initial transfer from xlsx, then download the kobo data from xlsx with XML values and headers. The downloaded xlsx from Kobo is best to work from since all headers will be in the format the script expects. 
 
 ### Notes for Google Form Data Transfer
 
@@ -53,15 +62,6 @@ To download google form responses as xlsx:
 - As long as google question labels match kobo question labels, they don't need to be edited in the downloaded xlsx form before running transfer. Timestamp is automatically saved in Google Form responses, and the time format nor the column label need to be edited. Transfer tool will record this as the 'end' time when saving to Kobo project. 
 - Each of the selected items for multiple select responses in Google Forms, are saved in a single cell and separated by commas when downloaded. If only one option is selected, need to add ',' at the end of the response.
 - Time and Date question type responses also don't need to be edited. Running the transfer will convert them to the correct format for Kobo.
-
-### Notes for General XLSX Data Transfer
-- for initial transfer from xlsx to kobo, when there is no uuid, the column header for repeat groups must be repeat/{group name}/{xml header for question in repeating group}. Each question in repeat group must have its own column in xlsx.
-- to associate media with a specific response/submission for initial transfer, when there is no _uuid column, row number of submission can be used. Media for the submission can be saved in file path ./attachments/{asset_uid}/{row_number}.
-- for logical groups, column header can be {group name}/{xml header for question in repeating group}. The group name in the header must match Data Column Name in Kobo project.
-- for ranking data, headers must be in this format: {xml header for question}/_1st_choice, {xml header for question}/_2nd_choice, {xml header for question}/_3rd_choice, and so on.
-
-- if data downloaded from kobo as xlsx with XML values and headers, repeat groups span across multiple tabs. Script supports this, and data for these repeat group responses can be edited in the respective tabs and reuploaded.
-- to minimise errors with formatting when data needs to be cleaned, it's best to do initial transfer from xlsx, then download the kobo data from xlsx with XML values and headers. The downloaded xlsx from Kobo is best to work from since all headers will be in the format the script expects. 
 
 ## Edge Cases
 - order of questions in google form, and kobo form can be different
