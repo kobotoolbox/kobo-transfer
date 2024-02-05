@@ -69,12 +69,10 @@ To download google form responses as xlsx:
 - responses that are left blank in google form results show up correctly (also blank) in kobo
 - if the question strings in kobo form and google form are not exact match, transfer will add columns in kobo data for the "extra" questions in google form 
   
-### Plan to account for more edge Cases (TODO)
-- print a warning if question strings seem similar (differences in capitalisation, spacing, and punctuation)
-- print warning if number of questions in kobo form and google form do not match
-- check if differences in spacing for question labels has unintended effects
-- check differences in how data is saved when google form collects email addresses of responses
-  
+### -w (when warning flag -w is passed)
+- prints a warning if question strings/labels in kobo form, and xls seem similar (differences in capitalisation, spacing, and punctuation), but not the same. 
+- prints warning if number of questions in kobo form and xlsx form do not match
+
 ## Limitations
 - If transferring from google form xlsx data (running -gt), submissions will be duplicated each time the script is run. Even when google form xlsx data is uploaded, edited, and then reuploaded, it will show up as a new submission instead of editing the one in kobo. To avoid this, after transferring from google form xlsx into kobo once, download the kobo data in xlsx form and edit/reupload that one with the flag -xt.
 - Similarly, if running -xt for initial xlsx data without uuid, submissions will be duplicated each time script is run. To avoid, after initial transfer, download data from kobo as xlsx and edit/work with that. 
