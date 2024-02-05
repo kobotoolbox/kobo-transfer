@@ -6,7 +6,7 @@ import sys
 
 from helpers.config import Config
 from transfer.media import get_media, del_media
-from transfer.xlsx_kobo import general_xls_to_xml
+from transfer.xlsx_kobo import general_xls_to_xml, kobo_xls_match_warnings
 from transfer.xml import (
     get_src_submissions_xml,
     get_submission_edit_data,
@@ -15,6 +15,7 @@ from transfer.xml import (
 )
 
 def main(
+    warnings,
     gtransfer,
     xtransfer,
     excel_file,
@@ -38,10 +39,14 @@ def main(
     all_results = []
     submission_edit_data = get_submission_edit_data() 
 
-
+    
     def transfer(all_results, url=None):
         if (xtransfer or gtransfer):
-            parsed_xml = general_xls_to_xml(excel_file, submission_edit_data, gtransfer)
+            #TODO
+            #headers = ["test1", "test2", "test"]
+            #match_kobo_xls(headers, submission_edit_data)
+            #call match_kobo, try to see if you can do a get request to kobo 
+            parsed_xml = general_xls_to_xml(excel_file, submission_edit_data, gtransfer, warnings)
         else: 
             parsed_xml = get_src_submissions_xml(xml_url=url)
         
@@ -70,6 +75,13 @@ def main(
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description='A CLI tool to transfer submissions between projects with identical XLSForms.'
+    )
+    parser.add_argument( 
+        '--print-warnings',
+        '-w',
+        default = False,
+        action = 'store_true', 
+        help='Print warnings if questions in Kobo form do not match XLS form.', #TODO
     )
     parser.add_argument( 
         '--google-transfer',
@@ -143,6 +155,7 @@ if __name__ == '__main__':
 
     try:
         main(
+            warnings = args.print_warnings,
             gtransfer=args.google_transfer,
             xtransfer = args.excel_transfer,
             excel_file=args.excel_file,

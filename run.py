@@ -16,6 +16,7 @@ from transfer.xlsx_kobo import general_xls_to_xml
 
 
 def main(
+    warnings,
     gtransfer,
     xtransfer,
     excel_file,
@@ -48,7 +49,7 @@ def main(
 
     def transfer(all_results, url=None):
         if (xtransfer or gtransfer):
-            parsed_xml = general_xls_to_xml(excel_file, submission_edit_data, gtransfer)
+            parsed_xml = general_xls_to_xml(excel_file, submission_edit_data, gtransfer, warnings)
         else:
             parsed_xml = get_src_submissions_xml(xml_url=url)
 
@@ -79,25 +80,32 @@ if __name__ == '__main__':
         description='A CLI tool to transfer submissions between projects with identical XLSForms.'
     )
 
-   # args = parser.parse_args()
+    parser.add_argument( 
+        '--print-warnings',
+        '-w',
+        default = False,
+        action = 'store_true', 
+        help='Print warnings if questions in Kobo form do not match XLS form.', 
+    )
+
     parser.add_argument( 
         '--google-transfer',
         '-gt',
         default = False,
         action = 'store_true', 
-        help='Complete transfer from Google Form data to Kobo project.', #TODO
+        help='Complete transfer from Google Form data to Kobo project.', 
     )
     parser.add_argument( 
         '--excel-transfer',
         '-xt',
         default = False,
         action = 'store_true', 
-        help='Complete transfer from any xlsx form to Kobo project.', #TODO
+        help='Complete transfer from any xlsx form to Kobo project.', 
     )
     parser.add_argument( 
         '--excel-file',
         '-ef', 
-        help='Excel file path for data to upload', #TODO
+        help='Excel file path for data to upload', 
     )
     parser.add_argument(
         '--limit',
@@ -155,6 +163,7 @@ if __name__ == '__main__':
 
     try:
         main(
+            warnings = args.print_warnings,
             gtransfer= args.google_transfer,
             xtransfer = args.excel_transfer,
             excel_file=args.excel_file,
