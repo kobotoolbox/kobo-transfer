@@ -8,8 +8,11 @@ import pandas as pd
 from datetime import datetime
 from dateutil import parser
 from .xml import generate_new_instance_id
+import requests
 from helpers.config import Config
-
+from transfer.xml import (
+    get_src_submissions_xml,
+)
 
 def format_timestamp(google_timestamp):
     dt = parser.parse(google_timestamp)
@@ -17,25 +20,23 @@ def format_timestamp(google_timestamp):
     #[-3] since kobo stores to miliseconds .000
     return dt.strftime(kobo_format)[:-3]
 
-def format_date(google_date):
+def format_google_date(google_date):
     date = None
     try: 
         date = datetime.strptime(google_date, "%Y-%m-%d %H:%M:%S")
     except ValueError:
         return google_date
-    
     if (date != None):
         return date.strftime("%Y-%m-%d")
     else: 
         return google_date
 
-def format_time(google_time):
+def format_google_time(google_time):
     is_time = None
     try: 
         is_time = datetime.strptime(google_time, '%H:%M:%S')
     except ValueError:
         return google_time
-    
     if (is_time!= None):
         return is_time.strftime("%H:%M:%S.%f")[:-3]
     else: 
@@ -44,7 +45,6 @@ def format_time(google_time):
 def group_element(_uid, group, cell_value):
     """creates logical groups in xml for kobo"""
     group_name = group.split("/")
-
     element = _uid.find('.//' + group_name[0])
     if (element == None):
         element = ET.SubElement(_uid, group_name[0])
@@ -55,9 +55,56 @@ def group_element(_uid, group, cell_value):
         
     return _uid
 
+def kobo_xls_match_warnings(xls_questions, submission_data):
+    config_src = Config().src
+    xml_url = config_src['xml_url'] + f'?limit={30000}'
+    kobo_form_xml = get_src_submissions_xml(xml_url)
+    uid = submission_data["asset_uid"]
+    uid_element = kobo_form_xml.find(f".//{uid}")
+
+    kobo_form_questions = []
+    lowercase_no_punctuation_koboq = []
+    
+    for subelement in uid_element:
+        kobo_form_questions.append(subelement.tag)
+        lower_no_punct_k = subelement.tag.lower()
+        lower_no_punct_k = ''.join(char for char in lower_no_punct_k if char not in string.punctuation)
+        lower_no_punct_k = lower_no_punct_k.replace(" ", "")
+        lowercase_no_punctuation_koboq.append(lower_no_punct_k)
+
+    xls_questions = [element for element in xls_questions if not element.startswith('_')]
+    lowercase_no_punctuation_xlsq = []
+    for question in xls_questions: 
+        lower_no_punct_q = question.lower()
+        lower_no_punct_q = ''.join(char for char in lower_no_punct_q if char not in string.punctuation)
+        lower_no_punct_q = lower_no_punct_q.replace(" ", "")
+        lowercase_no_punctuation_xlsq.append(lower_no_punct_q.lower())
+
+    elements_to_remove = ['formhub', '__version__', 'version', 'meta', 'start', 'end', 'Timestamp']
+    for element in elements_to_remove:
+        if element in kobo_form_questions: 
+            kobo_form_questions.remove(element)
+        if element in lowercase_no_punctuation_koboq:
+            lowercase_no_punctuation_koboq.remove(element)
+        if element in xls_questions:
+            xls_questions.remove(element)
+        if element in lowercase_no_punctuation_xlsq:
+            lowercase_no_punctuation_xlsq.remove(element)
+
+    #check if number of questions in kobo form, and number of questions in xls match
+    if len(kobo_form_questions) != len(xls_questions):
+        print("Warning: number of questions in kobo form might not match number of questions in xls")
+    elif kobo_form_questions != xls_questions:
+        #if standardised is same, but original is different
+        if (lowercase_no_punctuation_koboq != lowercase_no_punctuation_xlsq):
+            print("Warning: Question labels in kobo and XLS form have slight differences. Check if capitalisation, punctuation, and spacing are consistent.")
+        else:
+            #same number of questions but different labels
+            print("Warning: question labels in kobo form do not match xls labels exactly")
+
 
 def repeat_groups(submission_xml, uuid, workbook): 
-    """method is called whne there are multiple sheets in xlsx, because it is assumed to be repeat groups"""
+    """method is called when there are multiple sheets in xlsx, because it is assumed to be repeat groups"""
     uuid = uuid[len("uuid:"):]
     sheet_names = workbook.sheetnames
     sheet_names = sheet_names[1:]
@@ -84,7 +131,6 @@ def repeat_groups(submission_xml, uuid, workbook):
                     if (submission_uid == uuid): 
                         group_element = ET.SubElement(element, group_arr[1])
                         group_element.text = str(cell_value)
-        
         return submission_xml 
 
 
@@ -135,7 +181,7 @@ def open_xlsx(excel_file_path):
     return workbook
 
 def formhub_element(uid, NSMAP, formhubuuid):
-        # create formhub element with nested uuid
+        """creates formhub element with nested uuid"""
         _uid = ET.Element(uid, NSMAP)
         fhub_el = ET.SubElement(_uid, "formhub") 
         uuid_el = ET.SubElement(fhub_el, "uuid") 
@@ -151,10 +197,10 @@ def format_xml_from_google(cell_value):
             options_selected[i] = options_selected[i].strip().lower()
             options_selected[i] = options_selected[i].replace(' ', '_')
         cell_value = ' '.join(options_selected)
-        
+
     #formatting date and time to be compatible with kobo are specific to how google forms saves data
-    cell_value = format_time(str(cell_value))
-    cell_value = format_date(cell_value)
+    cell_value = format_google_time((cell_value))
+    cell_value = format_google_date(cell_value)
     return cell_value
 
 def meta_element(_uid, formatted_uuid):
@@ -171,7 +217,6 @@ def meta_element(_uid, formatted_uuid):
     deprecatedId = ET.SubElement(meta, "deprecatedID")
     instanceId.text = formatted_uuid
     deprecatedId.text = formatted_uuid
-
     _uid.append(meta)
     return formatted_uuid
 
@@ -179,9 +224,9 @@ def meta_element(_uid, formatted_uuid):
 def single_submission_xml( gtransfer, _uid, col_name, cell_value, all_empty, formatted_uuid):
     if (gtransfer):
         cell_value = format_xml_from_google(str(cell_value))
-     
+
     if cell_value is None or cell_value == "none" or cell_value == "None":  
-        cell_value = ""
+       cell_value = ""
     else:
         all_empty = False
         
@@ -204,8 +249,7 @@ def single_submission_xml( gtransfer, _uid, col_name, cell_value, all_empty, for
         _uid = initial_repeat(_uid, group_arr, str(cell_value))
         return all_empty, formatted_uuid
                 
-
-    if not (col_name.startswith("_")):  #column automatically generated with kobo (this is after data has been downloaded from kobo)
+    if not (col_name.startswith("_")):  #columns automatically generated with kobo (this is after data has been downloaded from kobo)
         cell_element = ET.SubElement(_uid, col_name)
         if (col_name == "end" or col_name == "start"):
             if (gtransfer):
@@ -216,10 +260,9 @@ def single_submission_xml( gtransfer, _uid, col_name, cell_value, all_empty, for
             
     return all_empty, formatted_uuid
 
-def general_xls_to_xml(excel_file_path, submission_data, gtransfer = False):
+def general_xls_to_xml(excel_file_path, submission_data, gtransfer = False, warnings = False):
     workbook = open_xlsx(excel_file_path)
-    #first sheet should have all data, if xlsx contains other sheets, they must be for repeat groups
-    sheet = workbook.worksheets[0]
+    sheet = workbook.worksheets[0]  #first sheet should have all data, if xlsx contains other sheets, they must be for repeat groups
 
     uid = submission_data["asset_uid"]
     formhubuuid = submission_data["formhub_uuid"]
@@ -230,8 +273,10 @@ def general_xls_to_xml(excel_file_path, submission_data, gtransfer = False):
     results = ET.Element("results")
     headers = [cell.value for cell in sheet[1]]
     
-    #data collected in google forms automatically records timestamp
-    if (gtransfer):
+    if warnings:
+        kobo_xls_match_warnings(headers, submission_data)
+    
+    if (gtransfer): #data collected in google forms automatically records timestamp
         for i in range(len(headers)): 
             if (headers[i] == "Timestamp"): 
                 headers[i] = "end"
@@ -252,14 +297,16 @@ def general_xls_to_xml(excel_file_path, submission_data, gtransfer = False):
 
         all_empty = True
         formatted_uuid = "uuid:"
-
         # Iterate through cells in the row and create corresponding XML elements
         for col_num, cell_value in enumerate(row, start=1):
                 col_name = headers[col_num-1]
+                if col_name == "":
+                    continue
                 all_empty, formatted_uuid = single_submission_xml(gtransfer, _uid, col_name, cell_value, all_empty, formatted_uuid)
         
         if (all_empty):
             print("Warning: Data may include one or more blank responses where no questions were answered.")
+            
         #iterate through other sheets to create repeat groups, and append to xml
         repeat_elements =  repeat_groups(_uid, formatted_uuid, workbook)
         if (repeat_elements != None):
@@ -284,7 +331,6 @@ def general_xls_to_xml(excel_file_path, submission_data, gtransfer = False):
     previous = ET.SubElement(root, 'previous')
     previous.text = None 
     root.append(results)
-    #tree = ET.ElementTree(root)
 
     workbook.close()
     return root
