@@ -45,14 +45,44 @@ def get_xml_value_media_mapping(values):
     return {get_valid_filename(v):v for v in values}
 
 
-def get_src_submissions_xml(xml_url):
+def get_src_submissions_xml(xml_url, filter_file):
     config = Config().src
+    asset_uid = config["asset_uid"]
     res = requests.get(
         url=xml_url, headers=config['headers'], params=config['params']
     )
     if not res.status_code == 200:
         raise Exception('Something went wrong')
-    return ET.fromstring(res.text)
+    
+    root = ET.fromstring(res.text)
+    #Get a list of uuids from txt file (if --filter-uuids argument was provided)
+    uuid_list = None
+    try:
+        if filter_file is not None:
+            if os.path.exists(filter_file):
+                # Open file in read mode
+                with open(filter_file, 'r') as file:
+                    # Read all lines from the file, remove newline characters, and store them in a list
+                    uuid_list = [line.strip() for line in file.readlines()]  
+    except:
+        print('🛑 Could not read from txt file')
+
+    if uuid_list is not None:
+        results_element = root.find(".//results")
+
+        if results_element is not None:
+            # Loop child elements of 'results' to find and match uuids
+            for element in results_element.findall(asset_uid):
+                instance_id_element = element.find('./meta/instanceID')
+
+                if instance_id_element is not None:
+                    # remove the first part 'uuid:' and just keep the uuid itself.
+                    instance_id = instance_id_element.text.replace('uuid:', '')
+
+                    if instance_id not in uuid_list:
+                        # Remove the non-matching uuid from the 'results'
+                        results_element.remove(element)
+    return root
 
 
 def submit_data(xml_sub, _uuid, original_uuid, xml_value_media_map):

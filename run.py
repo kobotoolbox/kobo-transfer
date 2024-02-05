@@ -22,6 +22,7 @@ def main(
     quiet=False,
     validate=True,
     config_file=None,
+    filter_file=None
 ):
     config = Config(config_file=config_file, validate=validate)
     config_src = config.src
@@ -40,7 +41,7 @@ def main(
     print('📨 Transferring submission data')
 
     def transfer(all_results, url=None):
-        parsed_xml = get_src_submissions_xml(xml_url=url)
+        parsed_xml = get_src_submissions_xml(xml_url=url, filter_file=filter_file)
         submissions = parsed_xml.findall(f'results/{config_src["asset_uid"]}')
         next_ = parsed_xml.find('next').text
         results = transfer_submissions(
@@ -115,8 +116,14 @@ if __name__ == '__main__':
         action='store_true',
         help='Suppress stdout',
     )
+    parser.add_argument(
+        '--filter-uuids',
+        '-F',
+        #default='uuids.txt', #For debugging purposes
+        type=str,
+        help='Location of the text file with specific uuids to transfer (one uuid per line).',
+    )
     args = parser.parse_args()
-
     try:
         main(
             limit=args.limit,
@@ -126,6 +133,7 @@ if __name__ == '__main__':
             quiet=args.quiet,
             validate=not args.no_validate,
             config_file=args.config_file,
+            filter_file=args.filter_uuids
         )
     except KeyboardInterrupt:
         print('🛑 Stopping run')
