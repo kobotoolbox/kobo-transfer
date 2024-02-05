@@ -1,15 +1,31 @@
-import argparse
-import json
 import os
-import pathlib
 import re
 import requests
 import shutil
-import sys
 import time
 
 from helpers.config import Config
 
+
+import os
+import shutil
+
+
+
+def rename_media_folder(submission_data, uuid, rowNum):
+    current_attachments_path = os.path.join(
+        Config.ATTACHMENTS_DIR, submission_data['asset_uid'], str(rowNum)
+    )
+    if (os.path.exists(current_attachments_path)):   
+        new_attachments_path = os.path.join(
+            Config.ATTACHMENTS_DIR, submission_data['asset_uid'], str(uuid)
+        )
+        try:
+            # Move the folder to the new path
+            shutil.move(current_attachments_path, new_attachments_path)
+
+        except Exception as e: #TODO
+            print(f"Error: {e}")
 
 def del_media():
     config = Config().src
@@ -17,7 +33,6 @@ def del_media():
     if os.path.exists(media_path):
         print('🧹 Cleaning up media (pass `--keep-media` to prevent cleanup).')
         shutil.rmtree(media_path)
-
 
 def get_media(verbosity=0, chunk_size=1024, throttle=0.1, limit=1000, query=''):
     config = Config().src
@@ -29,9 +44,10 @@ def get_media(verbosity=0, chunk_size=1024, throttle=0.1, limit=1000, query=''):
             'throttle': throttle,
         }
     )
+   
     stats = download_all_media(
-        data_url=config['data_url'],
-        stats=get_clean_stats(),
+       data_url=config['data_url'],
+       stats=get_clean_stats(),
     )
 
 

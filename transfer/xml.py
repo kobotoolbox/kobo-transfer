@@ -1,4 +1,5 @@
 import glob
+import string
 import io
 import json
 import os
@@ -6,11 +7,23 @@ import requests
 import uuid
 from datetime import datetime
 from xml.etree import ElementTree as ET
+from dateutil.parser import ParserError
+import re
+import gdown
+from utils.text import get_valid_filename
+
+
+import openpyxl
+import xml.etree.ElementTree as ET
+
+import pandas as pd
+from datetime import datetime, timedelta
+import pytz
+from dateutil import parser
 
 from .media import get_media, del_media
 from utils.text import get_valid_filename
 from helpers.config import Config
-
 
 def get_submission_edit_data():
     config = Config().dest
@@ -116,6 +129,7 @@ def generate_new_instance_id() -> (str, str):
 def transfer_submissions(all_submissions_xml, asset_data, quiet, regenerate):
     results = []
     for submission_xml in all_submissions_xml:
+
         # Use the same UUID so that duplicates are rejected
         original_uuid = submission_xml.find('meta/instanceID').text.replace(
             'uuid:', ''
