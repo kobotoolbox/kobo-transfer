@@ -82,6 +82,7 @@ To download google form responses as xlsx:
 <br>
 
 - assumes that kobo project and xlsx form question types and labels match (does not throw error but transferred submissions will be recorded incorrectly)
+- labels in xls can not contain '/' if it is not a repeating, or logical group
 - any data transferred will be accepted by kobo. For example, if question type is number in kobo, but submission transferred is text/string, it will be saved as such. For questions types such as dropdown/select one, responses in xlsx can be any string and kobo will save (regardless of whether or not it is an option in the kobo project). 
 - _submitted_by in Kobo will show username of account running the transfer, for all submissions.
 - submission_time in Kobo will show the time transfer was completed. 'end' shows time of response submission.
