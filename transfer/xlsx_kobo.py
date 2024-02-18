@@ -14,34 +14,6 @@ from transfer.xml import (
     get_src_submissions_xml,
 )
 
-def format_timestamp(google_timestamp):
-    dt = parser.parse(google_timestamp)
-    kobo_format = "%Y-%m-%dT%H:%M:%S.%f"
-    #[-3] since kobo stores to miliseconds .000
-    return dt.strftime(kobo_format)[:-3]
-
-def format_google_date(google_date):
-    date = None
-    try: 
-        date = datetime.strptime(google_date, "%Y-%m-%d %H:%M:%S")
-    except ValueError:
-        return google_date
-    if (date != None):
-        return date.strftime("%Y-%m-%d")
-    else: 
-        return google_date
-
-def format_google_time(google_time):
-    is_time = None
-    try: 
-        is_time = datetime.strptime(google_time, '%H:%M:%S')
-    except ValueError:
-        return google_time
-    if (is_time!= None):
-        return is_time.strftime("%H:%M:%S.%f")[:-3]
-    else: 
-        return google_time
-
 def group_element(_uid, group, cell_value):
     """creates logical groups in xml for kobo"""
     group_name = group.split("/")
@@ -188,21 +160,6 @@ def formhub_element(uid, NSMAP, formhubuuid):
         uuid_el.text = formhubuuid
         return _uid
 
-def format_xml_from_google(cell_value):
-    #multiple select question responses from google forms are sepearated by ',' 
-    #to show up in kobo, responses must be lowercase, spaces must be replaced with '_' and seperated by ' '
-    if ',' in cell_value:
-        options_selected = cell_value.split(',')
-        for i in range(len(options_selected)):
-            options_selected[i] = options_selected[i].strip().lower()
-            options_selected[i] = options_selected[i].replace(' ', '_')
-        cell_value = ' '.join(options_selected)
-
-    #formatting date and time to be compatible with kobo are specific to how google forms saves data
-    cell_value = format_google_time((cell_value))
-    cell_value = format_google_date(cell_value)
-    return cell_value
-
 def meta_element(_uid, formatted_uuid):
     """meta tag 
           <meta>
@@ -222,8 +179,6 @@ def meta_element(_uid, formatted_uuid):
 
 
 def single_submission_xml( gtransfer, _uid, col_name, cell_value, all_empty, formatted_uuid):
-    if (gtransfer):
-        cell_value = format_xml_from_google(str(cell_value))
 
     if cell_value is None or cell_value == "none" or cell_value == "None":  
        cell_value = ""
@@ -252,9 +207,7 @@ def single_submission_xml( gtransfer, _uid, col_name, cell_value, all_empty, for
     if not (col_name.startswith("_")):  #columns automatically generated with kobo (this is after data has been downloaded from kobo)
         cell_element = ET.SubElement(_uid, col_name)
         if (col_name == "end" or col_name == "start"):
-            if (gtransfer):
-                cell_value = format_timestamp(str(cell_value))
-            elif (cell_value != ""):
+            if (cell_value != ""):
                 cell_value = cell_value.isoformat()                
         cell_element.text = str(cell_value)
             
@@ -275,13 +228,6 @@ def general_xls_to_xml(excel_file_path, submission_data, gtransfer = False, warn
     
     if warnings:
         kobo_xls_match_warnings(headers, submission_data)
-    
-    if (gtransfer): #data collected in google forms automatically records timestamp
-        for i in range(len(headers)): 
-            if (headers[i] == "Timestamp"): 
-                headers[i] = "end"
-            headers[i] =  headers[i].rstrip(string.punctuation)
-            headers[i] = headers[i].replace(" ", "_")
 
     num_results = 0
     NSMAP = {"xmlns:jr" :  'http://openrosa.org/javarosa',
@@ -290,10 +236,6 @@ def general_xls_to_xml(excel_file_path, submission_data, gtransfer = False, warn
          "version" : str(v)}
     for row_num, row in enumerate(sheet.iter_rows(min_row=2, values_only=True,), start=2):
         _uid = formhub_element(uid, NSMAP, formhubuuid)
-        if (gtransfer):
-            #google form data does not collect start time data
-            start_element = ET.Element("start")
-            _uid.append(start_element)
 
         all_empty = True
         formatted_uuid = "uuid:"
