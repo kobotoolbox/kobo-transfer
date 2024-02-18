@@ -42,27 +42,6 @@ pip install openpyxl pandas requests xmltodict python-dateutil
 - if data downloaded from kobo as xlsx with XML values and headers, repeat groups span across multiple tabs. Script supports this, and data for these repeat group responses can be edited in the respective tabs and reuploaded.
 - to minimise errors with formatting when data needs to be cleaned, it's best to do initial transfer from xlsx, then download the kobo data from xlsx with XML values and headers. The downloaded xlsx from Kobo is best to work from since all headers will be in the format the script expects. 
 
-### Notes for Google Form Data Transfer
-
-To ensure that destination project has the same content as Google Form. The corresponding question types for a Google Form, and Kobo is listed below:
-
-|Google Question Type | Kobo Question Type |
-| -------- | -------- |
-| Multiple Choice | Select one |
-| Short Answer, Paragraph |Text|
-| Checkboxes | Select Many|
-| Linear Scale | Range |
-| Dropdown | Select One|
-| Date | Date |
-| Time | Time |
-
-To download google form responses as xlsx:
-   Open Google Form data (Responses tab) in Google Sheets, and download as xlsx from there (file → download as → microsoft excel (xlsx))
-
-- As long as google question labels match kobo question labels, they don't need to be edited in the downloaded xlsx form before running transfer. Timestamp is automatically saved in Google Form responses, and the time format nor the column label need to be edited. Transfer tool will record this as the 'end' time when saving to Kobo project. 
-- Each of the selected items for multiple select responses in Google Forms, are saved in a single cell and separated by commas when downloaded. If only one option is selected, need to add ',' at the end of the response.
-- Time and Date question type responses also don't need to be edited. Running the transfer will convert them to the correct format for Kobo.
-
 ## Edge Cases
 - order of questions in google form, and kobo form can be different
 - no effect if some questions in kobo form are not present in google form (the response cells for that column will just be empty)
@@ -88,22 +67,9 @@ To download google form responses as xlsx:
 - If ‘None’ is a response in submission, it will show up as blank after being transferred to kobo
 - Although submissions will not be duplicated across multiple runs of the script, if the submissions contain attachment files, the files are duplicated on the server.
 
-<br>
-
-- if running -gt, responses and text submissions can not contain ',' or '/' since data will be transferred to Kobo incorrectly.
-- if running -gt, text submissions will be changed; all commas will show up as a space character, all text will be lowercase
-- Does not support Google question types multiple choice grid, tick box grid, and file attachments.
-- Google sheets does not have a ‘start’ and ‘end’ like kobo does; it only records submission time. Submission time data will show up in ‘end’ column in kobo project when running -gt
-- For time question types in kobo, time zone is recorded. Time question types in google sheets does not have the same feature. Time will not show UTC + ___. 
-
  ## Media Upload
 Demo walks through this process:
  - for initial data upload, create folder named attachments, with subfolder name being the asset uid of form in kobo. To associate media with a specific submission, create subfolders named after the row number of the submission in the xlsx. For example, without initially having a uuid (in a case where data is imported from a different source), the file path for the media would be attachments/aMhhwTacmk9PLEQuv9etDS/2. Media within that folder must match the filename in xlsx form cell exactly.
 - if data already has uuids, create attachments folder with a subfolder asset id. Within asset id subfolder, create folders each named after uuid of a response. Media associated with each uuid should be within that folder.
 - If run.py is run with the attachments folder, media should save in kobo correctly. 
  
- ## Notes regarding media uploaded as a response in google forms
-Google form attachments are saved in a folder in Google Drive and folders are categorised by questions. If the google drive folder path is specified, it's possible to have all the images transferred to Kobo and have them show up in Gallery View. 
-For the filter view of these images, where a question is selected in Kobo, and images submitted for that question appears, user would need to manually specify which google drive folder path corresponds to each question. It's also not possible to link an image to a specific submission. 
-
-Right now, I've ony figured out how to transfer images, and I'm not sure if other types are possible to transfer. Given all these limitations because of the access rules in google drive, is it worth implementing? The Google drive image transfer to Kobo gallery works but is not included in the main branch since there are a few bugs and I'm not sure it makes sense to have if each drive link needs to be listed with each question? 
