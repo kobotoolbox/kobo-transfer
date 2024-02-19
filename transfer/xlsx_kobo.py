@@ -10,41 +10,6 @@ from transfer.xml import get_src_submissions_xml
 from .media import rename_media_folder
 from .xml import generate_new_instance_id
 
-#so your logic for grouping elements
-#you split a group of elements
-#you pass it in 
-#group_cl8pp05/New_Question
-#the first element is the parent_group 
-#the second element is the question
-
-#so what you do in ur current code
-#find the xml for group_cl
-#if it doesn't exist, you create it
-#currently, you create it under the _uid element obviously
-
-#HOWEVER, you don't want to do that, you want to create it in the element right before index
-
-
-#if the first element is not the same as second element (the question)
-#you take the <group_cl8pp element> and you create a subelement w the question... 
-#and then you assign the cell value as the text for that question
-
-
-#instead: 
-#split the group
-#find the first element
-#first_group = if the element doesnt exist, need to create it
-
-#lets try a loop
-#split the group
-#loop through them 
-#keep a parent_elem
-#in each loop iter:   
-# try to find the element, if it doesn't exist, create it
-#if condition if its the last one, assign the cell_value
-
-
-
 def nested_group_element(_uid, group, cell_value):
     group_name = group.split("/")
     parent_group = _uid
@@ -148,11 +113,11 @@ def kobo_xls_match_warnings(xls_questions, submission_data):
 def repeat_groups(submission_xml, uuid, workbook):
     """method is called when there are multiple sheets in xlsx, because it is assumed to be repeat groups"""
     uuid = uuid[len("uuid:") :]
-    sheet_names = workbook.sheetnames
+    sheet_names = workbook.sheetnames 
     sheet_names = sheet_names[1:]
     for sheet_name in sheet_names:
         sheet = workbook[sheet_name]
-        headers = [cell.value for cell in sheet[1]]
+        headers = [cell.value for cell in sheet[1]] 
         try:
             submission_uid_header = headers.index("_submission__uuid")
         except Exception:
@@ -175,7 +140,8 @@ def repeat_groups(submission_xml, uuid, workbook):
                     if submission_uid == uuid:
                         group_element = ET.SubElement(element, group_arr[1])
                         group_element.text = str(cell_value)
-        return submission_xml
+    
+    return submission_xml
 
 
 def initial_repeat(_uid, col_arr, cell_value):
