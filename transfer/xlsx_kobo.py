@@ -2,21 +2,69 @@ import string
 from datetime import datetime
 from xml.etree import ElementTree as ET
 import openpyxl
-import xml.etree.ElementTree as ET
-from .media import rename_media_folder
 import pandas as pd
-from datetime import datetime
 from dateutil import parser
-from .xml import generate_new_instance_id
 import requests
 from helpers.config import Config
-from transfer.xml import (
-    get_src_submissions_xml,
-)
+from transfer.xml import get_src_submissions_xml
+from .media import rename_media_folder
+from .xml import generate_new_instance_id
+
+#so your logic for grouping elements
+#you split a group of elements
+#you pass it in 
+#group_cl8pp05/New_Question
+#the first element is the parent_group 
+#the second element is the question
+
+#so what you do in ur current code
+#find the xml for group_cl
+#if it doesn't exist, you create it
+#currently, you create it under the _uid element obviously
+
+#HOWEVER, you don't want to do that, you want to create it in the element right before index
 
 
+#if the first element is not the same as second element (the question)
+#you take the <group_cl8pp element> and you create a subelement w the question... 
+#and then you assign the cell value as the text for that question
+
+
+#instead: 
+#split the group
+#find the first element
+#first_group = if the element doesnt exist, need to create it
+
+#lets try a loop
+#split the group
+#loop through them 
+#keep a parent_elem
+#in each loop iter:   
+# try to find the element, if it doesn't exist, create it
+#if condition if its the last one, assign the cell_value
+
+
+
+def nested_group_element(_uid, group, cell_value):
+    group_name = group.split("/")
+    parent_group = _uid
+    group_element = None
+    for group in group_name: 
+        group_element = _uid.find(".//" + group)
+        if (group_element == None):
+            group_element = ET.SubElement(parent_group, group)
+
+        if (group == group_name[-1]):
+            group_element.text = str(cell_value)
+        
+        parent_group = group_element
+        group_element = None
+    return _uid
+
+
+"""
 def group_element(_uid, group, cell_value):
-    """creates logical groups in xml for kobo"""
+#creates logical groups in xml for kobo
     group_name = group.split("/")
     element = _uid.find(".//" + group_name[0])
     if element == None:
@@ -27,7 +75,7 @@ def group_element(_uid, group, cell_value):
         group_element.text = str(cell_value)
 
     return _uid
-
+"""
 
 def kobo_xls_match_warnings(xls_questions, submission_data):
     config_src = Config().src
@@ -159,7 +207,7 @@ def initial_repeat(_uid, col_arr, cell_value):
 
 
 def open_xlsx(excel_file_path):
-    """opens xlsx, and formats all data into xml format compatible with kobo"""
+    """opens xlsx, and returns workbook"""
     try:
         workbook = openpyxl.load_workbook(excel_file_path, read_only=True)
     except FileNotFoundError as e:
@@ -178,12 +226,12 @@ def open_xlsx(excel_file_path):
     return workbook
 
 
-def formhub_element(uid, NSMAP, formhubuuid):
+def formhub_element(uid, NSMAP, formhub_uuid):
     """creates formhub element with nested uuid"""
     _uid = ET.Element(uid, NSMAP)
     fhub_el = ET.SubElement(_uid, "formhub")
     uuid_el = ET.SubElement(fhub_el, "uuid")
-    uuid_el.text = formhubuuid
+    uuid_el.text = formhub_uuid
     return _uid
 
 
@@ -223,14 +271,9 @@ def single_submission_xml(
 
     # column headers that include / indicate {group_name}/{question}
     group_arr = col_name.split("/")
-    if len(group_arr) == 2:
-        _uid = group_element(_uid, str(col_name), str(cell_value))
-        return all_empty, formatted_uuid
-
-    # repeat groups, for initial data transfer to kobo (without uuid) are saved like this: repeat/testname/group_question_1_text
-    # therefore, column header for a repeat group will have three elements when split()
-    if len(group_arr) == 3 and group_arr[0] == "repeat":
-        _uid = initial_repeat(_uid, group_arr, str(cell_value))
+    if len(group_arr) >= 2: #TODO MAKE SURE IT DEALS W NESTED GROUPS
+       # _uid = group_element(_uid, str(col_name), str(cell_value))
+        _uid = nested_group_element(_uid, str(col_name), str(cell_value))
         return all_empty, formatted_uuid
 
     if not (
@@ -254,7 +297,7 @@ def general_xls_to_xml(
     ]  # first sheet should have all data, if xlsx contains other sheets, they must be for repeat groups
 
     uid = submission_data["asset_uid"]
-    formhubuuid = submission_data["formhub_uuid"]
+    formhub_uuid = submission_data["formhub_uuid"]
     v = submission_data["version"]
     __version__ = submission_data["__version__"]
 
@@ -279,7 +322,7 @@ def general_xls_to_xml(
         ),
         start=2,
     ):
-        _uid = formhub_element(uid, NSMAP, formhubuuid)
+        _uid = formhub_element(uid, NSMAP, formhub_uuid)
 
         all_empty = True
         formatted_uuid = "uuid:"
@@ -314,6 +357,7 @@ def general_xls_to_xml(
         results.append(_uid)
         num_results += 1
 
+
     count = ET.SubElement(root, "count")
     count.text = str(num_results)
     next = ET.SubElement(root, "next")
@@ -323,4 +367,5 @@ def general_xls_to_xml(
     root.append(results)
 
     workbook.close()
+    
     return root

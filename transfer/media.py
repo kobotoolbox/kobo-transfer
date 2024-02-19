@@ -12,11 +12,11 @@ import shutil
 
 
 
-def rename_media_folder(submission_data, uuid, rowNum):
+def rename_media_folder(submission_data, uuid, row_num):
     current_attachments_path = os.path.join(
-        Config.ATTACHMENTS_DIR, submission_data['asset_uid'], str(rowNum)
+        Config.ATTACHMENTS_DIR, submission_data['asset_uid'], str(row_num)
     )
-    if (os.path.exists(current_attachments_path)):   
+    if os.path.exists(current_attachments_path):   
         new_attachments_path = os.path.join(
             Config.ATTACHMENTS_DIR, submission_data['asset_uid'], str(uuid)
         )
