@@ -42,7 +42,7 @@ def nested_group_element(_uid, group_name, cell_value):
     
         group_element = _uid.find(".//" + group)
 
-        if (group_element == None):
+        if (group_element is None):
             group_element = ET.SubElement(parent_group, group)
 
         if (group == group_name[-1]): #last element in group_name is the question
@@ -66,7 +66,7 @@ def group_section(group_name, cell_value):
         #if group == group_name[0]: #this is parent group
          #   parent_group = ET.Element(group)
         group_element = parent_group.find(".//" + group) 
-        if (group_element == None):
+        if (group_element is None):
             group_element = ET.SubElement(parent_group, group)
         
         if (group == group_name[-1]): #last element in group_name is the question
@@ -138,7 +138,7 @@ def new_repeat(submission_xml, uuid, workbook, submission_index):
                     group_names = col_name.split('/')
 
                     index_of_sheet_group = group_names.index(str(sheet_name))
-                    if mini_group == None: 
+                    if mini_group is None: 
                         mini_group = group_section(group_names[index_of_sheet_group:], str(cell_value))
                     else:
                         mini_group = nested_group_element(mini_group, group_names[index_of_sheet_group:], str(cell_value))
@@ -462,7 +462,7 @@ def general_xls_to_xml(
 #        _repeat = ET.ElementTree(repeat_elements)
  #       _repeat.write("xm.xml")
 
-        if repeat_elements != None:
+        if repeat_elements is not None:
             _uid = repeat_elements
 
         version = ET.Element("__version__")
