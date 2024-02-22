@@ -255,40 +255,6 @@ def kobo_xls_match_warnings(xls_questions, submission_data):
                 "Warning: question labels in kobo form do not match xls labels exactly"
             )
 
-
-def repeat_groups(submission_xml, uuid, workbook):
-    """method is called when there are multiple sheets in xlsx, because it is assumed to be repeat groups"""
-    uuid = uuid[len("uuid:") :]
-    sheet_names = workbook.sheetnames 
-    sheet_names = sheet_names[1:]
-    for sheet_name in sheet_names:
-        sheet = workbook[sheet_name]
-        headers = [cell.value for cell in sheet[1]] 
-        try:
-            submission_uid_header = headers.index("_submission__uuid")
-        except Exception:
-            print(
-                "Error: if xlsx file has multiple tabs, data in extra sheets must be in expected repeating group format"
-            )
-            raise
-        for row in sheet.iter_rows(min_row=2, values_only=True):
-            submission_uid = str(row[submission_uid_header])
-            #if submission_uid == uuid:
-             #   ET.SubElement(submission_xml, sheet_name) #creates parent_group xml element 
-            for col_num, cell_value in enumerate(row, start=1):
-                col_name = str(headers[col_num - 1])
-                group_arr = col_name.split("/")
-
-                if cell_value in [None, 'None', 'none']:
-                    cell_value = ""
-        
-                if len(group_arr) >= 2 and sheet_name in col_name: #these are the columns that contain questions 
-                    if submission_uid == uuid:
-                        nested_group_element(submission_xml, group_arr, cell_value)
-    
-    return submission_xml
-
-
 def open_xlsx(excel_file_path):
     """opens xlsx, and returns workbook"""
     try:
@@ -339,7 +305,6 @@ def meta_element(_uid, formatted_uuid):
 def single_submission_xml(
     gtransfer, _uid, col_name, cell_value, all_empty, formatted_uuid
 ):
-
     if cell_value in [None, 'None', 'none']:
         cell_value = ""
     else:
@@ -347,7 +312,7 @@ def single_submission_xml(
 
     # if xlsx data is downloaded from kobo, it will contain this column
     if col_name == "_uuid":
-        if cell_value == "":  # if there is no uuid specified, new one will be generated
+        if not cell_value:  # if there is no uuid specified, new one will be generated
             formatted_uuid = formatted_uuid + generate_new_instance_id()[1]
         else:
             formatted_uuid = formatted_uuid + str(cell_value)
@@ -364,7 +329,7 @@ def single_submission_xml(
     ):  # columns automatically generated with kobo (this is after data has been downloaded from kobo)
         cell_element = ET.SubElement(_uid, col_name)
         if col_name in ['end', 'start']:
-            if cell_value != "":
+            if cell_value:
                 cell_value = cell_value.isoformat()
         cell_element.text = str(cell_value)
 
@@ -415,7 +380,7 @@ def general_xls_to_xml(
             col_name = headers[col_num - 1]
             if col_name == '_index': 
                 index = str(cell_value)
-            if col_name == "":
+            if not col_name:
                 continue
             all_empty, formatted_uuid = single_submission_xml(
                 gtransfer, _uid, col_name, cell_value, all_empty, formatted_uuid
