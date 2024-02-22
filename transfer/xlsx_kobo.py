@@ -302,8 +302,7 @@ def meta_element(_uid, formatted_uuid):
     return formatted_uuid
 
 
-def single_submission_xml(
-    gtransfer, _uid, col_name, cell_value, all_empty, formatted_uuid
+def single_submission_xml( _uid, col_name, cell_value, all_empty, formatted_uuid
 ):
     if cell_value in [None, 'None', 'none']:
         cell_value = ""
@@ -337,7 +336,7 @@ def single_submission_xml(
 
 
 def general_xls_to_xml(
-    excel_file_path, submission_data, gtransfer=False, warnings=False
+    excel_file_path, submission_data, warnings=False
 ):
     workbook = open_xlsx(excel_file_path)
     sheet = workbook.worksheets[
@@ -383,7 +382,7 @@ def general_xls_to_xml(
             if not col_name:
                 continue
             all_empty, formatted_uuid = single_submission_xml(
-                gtransfer, _uid, col_name, cell_value, all_empty, formatted_uuid
+                _uid, col_name, cell_value, all_empty, formatted_uuid
             )
 
         if all_empty:

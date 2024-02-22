@@ -17,7 +17,6 @@ from transfer.xlsx_kobo import general_xls_to_xml
 
 def main(
     warnings,
-    gtransfer,
     xtransfer,
     excel_file,
     limit,
@@ -32,7 +31,7 @@ def main(
     config = Config(config_file=config_file, validate=validate)
     config_src = config.src
 
-    if not gtransfer and not xtransfer:
+    if not xtransfer:
         print('📸 Getting all submission media', end=' ', flush=True)
         get_media()
 
@@ -48,8 +47,8 @@ def main(
     print('📨 Transferring submission data')
 
     def transfer(all_results, url=None):
-        if (xtransfer or gtransfer):
-            parsed_xml = general_xls_to_xml(excel_file, submission_edit_data, gtransfer, warnings)
+        if (xtransfer):
+            parsed_xml = general_xls_to_xml(excel_file, submission_edit_data, warnings)
         else:
             parsed_xml = get_src_submissions_xml(xml_url=url)
 
@@ -69,7 +68,7 @@ def main(
         
     transfer(all_results, xml_url_src)
     
-    if not xtransfer and not gtransfer:
+    if not xtransfer:
         if not keep_media:
             del_media()
 
@@ -166,7 +165,6 @@ if __name__ == '__main__':
     try:
         main(
             warnings = args.print_warnings,
-            gtransfer= args.google_transfer,
             xtransfer = args.excel_transfer,
             excel_file=args.excel_file,
             limit=args.limit,
