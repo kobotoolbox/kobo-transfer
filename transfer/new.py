@@ -162,7 +162,6 @@ def t_general_xls_to_xml(excel_file_path, submission_data, gtransfer=False, warn
         results.append(_uid)
         num_results += 1
 
-
     count = ET.SubElement(root, "count")
     count.text = str(num_results)
     next = ET.SubElement(root, "next")
@@ -180,6 +179,9 @@ def t_general_xls_to_xml(excel_file_path, submission_data, gtransfer=False, warn
 
 def nested_group_element(_uid, group_name, cell_value):
     parent_group = _uid
+    #if (_uid == None):
+     #   parent_group = ET.Element(group_name[0]) 
+      #  group_name = group_name[1:]
     group_element = None
     for group in group_name: 
         if parent_group.tag == group:
@@ -195,6 +197,7 @@ def nested_group_element(_uid, group_name, cell_value):
         
         parent_group = group_element
         group_element = None
+    
     return _uid
 
 
@@ -243,7 +246,7 @@ def new_repeat(submission_xml, uuid, workbook, submission_index):
             sheet = workbook[sheet_name]
             headers = [cell.value for cell in sheet[1]] 
             try:
-                submission_uid_header = headers.index("_submission__uuid")
+               # submission_uid_header = headers.index("_submission__uuid")
                 index_header = headers.index("_index")
                 parent_index_header = headers.index('_parent_index')
             except Exception:
@@ -256,7 +259,7 @@ def new_repeat(submission_xml, uuid, workbook, submission_index):
 
             for row in sheet.iter_rows(min_row=2, values_only=True):
                 mini_group = None
-                submission_uid = str(row[submission_uid_header])
+                #submission_uid = str(row[submission_uid_header])
                 index = str(row[index_header])
                 parent_index = str(row[parent_index_header]) #this is the current value
 
@@ -265,8 +268,6 @@ def new_repeat(submission_xml, uuid, workbook, submission_index):
                         continue
                     else: 
                         original_indexes.append(index) #first sheet, makes sure this is not empty.. 
-                        print(original_indexes) 
-                        print("Orig indexes")
     
 
                 else: #if its another sheet, you have to see if its part of the original indexes
@@ -284,13 +285,6 @@ def new_repeat(submission_xml, uuid, workbook, submission_index):
 
                     group_names = col_name.split('/')
 
-                    #if str(sheet_name) == group_names[0]: #this is if its op5, so the first sheet
-                     #   submission_xml = nested_group_element(submission_xml, group_names, cell_value)   
-                        #so it does come in here, but its overwritten.... .
-                        #you don't want it to overwrite. 
-                        #its hte new row. #therefore it is a new element entirely!
-                        #print("second")
-
                     index_of_sheet_group = group_names.index(str(sheet_name))
                     if mini_group == None: 
                         mini_group = group_section(group_names[index_of_sheet_group:], str(cell_value))
@@ -303,9 +297,14 @@ def new_repeat(submission_xml, uuid, workbook, submission_index):
 
                 if (str(sheet_name) != group_names[0]): #if its not the first sheet/first parent element
                     um = question_headers[0].split('/')
-                    element = find_n(submission_xml, parent_index, um[index_of_sheet_group-1])
-                    print("LAST ONE B4 TRACEBACK")
-                    print(parent_index)
+
+                    #TODO
+                    #THE TAG U ARE PASISNG IN IS RISKY. WHAT IFONE OF THE REPEAT GROUPS IS UNDER A DIFFERENT PATH... IT COULD BE TBH. 
+                    #U SHOULD ACCOUNT FOR IT
+                    #WAIT FOR A RESPONSE... 
+                    element = find_n(submission_xml, original_indexes.index(parent_index) + 1, um[index_of_sheet_group-1])
+                    #print("LAST ONE B4 TRACEBACK")
+                    #print(parent_index)
                     first = ET.ElementTree(submission_xml)
                     first.write("trace.xml") #first sheet, first xml, no S subgroup
 

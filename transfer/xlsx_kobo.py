@@ -10,21 +10,162 @@ from transfer.xml import get_src_submissions_xml
 from .media import rename_media_folder
 from .xml import generate_new_instance_id
 
+"""
 def nested_group_element(_uid, group, cell_value):
     group_name = group.split("/")
     parent_group = _uid
     group_element = None
     for group in group_name: 
         group_element = _uid.find(".//" + group)
+
         if (group_element == None):
             group_element = ET.SubElement(parent_group, group)
-
-        if (group == group_name[-1]):
+        
+        if (group == group_name[-1]): #last element in group_name is the question
             group_element.text = str(cell_value)
         
         parent_group = group_element
         group_element = None
     return _uid
+"""
+
+
+def nested_group_element(_uid, group_name, cell_value):
+    parent_group = _uid
+    #if (_uid == None):
+     #   parent_group = ET.Element(group_name[0]) 
+      #  group_name = group_name[1:]
+    group_element = None
+    for group in group_name: 
+        if parent_group.tag == group:
+            continue
+    
+        group_element = _uid.find(".//" + group)
+
+        if (group_element == None):
+            group_element = ET.SubElement(parent_group, group)
+
+        if (group == group_name[-1]): #last element in group_name is the question
+            group_element.text = str(cell_value)
+        
+        parent_group = group_element
+        group_element = None
+    
+    return _uid
+
+
+def group_section(group_name, cell_value):
+    #group_name = group.split("/")
+    initial = ET.Element(group_name[0]) 
+    group_name = group_name[1:] #root is initial, search for elements after it when you use .find//
+    #alternatively you can do the cnotinue thing... that you did in nested
+    
+    parent_group = initial
+    group_element = None
+    for group in group_name: 
+        #if group == group_name[0]: #this is parent group
+         #   parent_group = ET.Element(group)
+        group_element = parent_group.find(".//" + group) 
+        if (group_element == None):
+            group_element = ET.SubElement(parent_group, group)
+        
+        if (group == group_name[-1]): #last element in group_name is the question
+            group_element.text = str(cell_value)
+        
+        parent_group = group_element
+        group_element = None
+
+    return initial
+
+def find_n(xml, n, element_name):
+    occurrences = 0
+    for element in xml.iter(element_name):
+        occurrences += 1
+        if occurrences == int(n):
+            return element
+    return None
+
+def new_repeat(submission_xml, uuid, workbook, submission_index):
+        """method is called when there are multiple sheets in xlsx, because it is assumed to be repeat groups"""
+        uuid = uuid[len("uuid:") :]
+        sheet_names = workbook.sheetnames 
+        sheet_names = sheet_names[1:]
+
+        original_indexes = [] #cleared every time its a new sheet. 
+
+        for sheet_name in sheet_names:
+            new_indexes = []
+            sheet = workbook[sheet_name]
+            headers = [cell.value for cell in sheet[1]] 
+            try:
+               # submission_uid_header = headers.index("_submission__uuid")
+                index_header = headers.index("_index")
+                parent_index_header = headers.index('_parent_index')
+            except Exception:
+                print(
+                    "Error: if xlsx file has multiple tabs, data in extra sheets must be in expected repeating group format"
+                )
+                raise
+
+            question_headers = [item for item in headers if not item.startswith('_')] #question headers should be the same for a single sheet
+
+            for row in sheet.iter_rows(min_row=2, values_only=True):
+                mini_group = None
+                #submission_uid = str(row[submission_uid_header])
+                index = str(row[index_header])
+                parent_index = str(row[parent_index_header]) #this is the current value
+
+                if str(sheet_name) == str(sheet_names[0]): #this is only for the first sheet, because the parent is the uuid submission
+                    if parent_index != submission_index: 
+                        continue
+                    else: 
+                        original_indexes.append(index) #first sheet, makes sure this is not empty.. 
+    
+
+                else: #if its another sheet, you have to see if its part of the original indexes
+                    if parent_index not in original_indexes:
+                        continue
+                    else: 
+                        new_indexes.append(index)
+                
+                for col_name in question_headers: 
+                    col_num = headers.index(col_name)
+                    cell_value = str(row[col_num])
+
+                    if cell_value is None or cell_value == "none" or cell_value == "None":
+                        cell_value = ""
+
+                    group_names = col_name.split('/')
+
+                    index_of_sheet_group = group_names.index(str(sheet_name))
+                    if mini_group == None: 
+                        mini_group = group_section(group_names[index_of_sheet_group:], str(cell_value))
+                    else:
+                        mini_group = nested_group_element(mini_group, group_names[index_of_sheet_group:], str(cell_value))
+                
+                if (str(sheet_name) == group_names[0]): #if its the first sheet, you will append mini_group. 
+                    submission_xml.append(mini_group)
+
+
+                if (str(sheet_name) != group_names[0]): #if its not the first sheet/first parent element
+                    um = question_headers[0].split('/')
+
+                    #TODO
+                    #THE TAG U ARE PASISNG IN IS RISKY. WHAT IFONE OF THE REPEAT GROUPS IS UNDER A DIFFERENT PATH... IT COULD BE TBH. 
+                    #U SHOULD ACCOUNT FOR IT
+                    #WAIT FOR A RESPONSE... 
+                    element = find_n(submission_xml, original_indexes.index(parent_index) + 1, um[index_of_sheet_group-1])
+                    #print("LAST ONE B4 TRACEBACK")
+                    #print(parent_index)
+                   # first = ET.ElementTree(submission_xml)
+                    #first.write("trace.xml") #first sheet, first xml, no S subgroup
+
+                    element.append(mini_group)
+
+                if row == sheet.max_row:
+                    original_indexes = new_indexes
+
+        return submission_xml
 
 
 """
@@ -41,6 +182,11 @@ def group_element(_uid, group, cell_value):
 
     return _uid
 """
+
+
+
+
+
 
 def kobo_xls_match_warnings(xls_questions, submission_data):
     config_src = Config().src
@@ -127,21 +273,21 @@ def repeat_groups(submission_xml, uuid, workbook):
             raise
         for row in sheet.iter_rows(min_row=2, values_only=True):
             submission_uid = str(row[submission_uid_header])
-            if submission_uid == uuid:
-                element = ET.SubElement(submission_xml, sheet_name)
+            #if submission_uid == uuid:
+             #   ET.SubElement(submission_xml, sheet_name) #creates parent_group xml element 
             for col_num, cell_value in enumerate(row, start=1):
                 col_name = str(headers[col_num - 1])
                 group_arr = col_name.split("/")
 
                 if cell_value is None or cell_value == "none" or cell_value == "None":
                     cell_value = ""
-
-                if len(group_arr) == 2 and sheet_name in col_name:
+        
+                if len(group_arr) >= 2 and sheet_name in col_name: #these are the columns that contain questions 
                     if submission_uid == uuid:
-                        group_element = ET.SubElement(element, group_arr[1])
-                        group_element.text = str(cell_value)
+                        nested_group_element(submission_xml, group_arr, cell_value)
     
     return submission_xml
+
 
 
 def initial_repeat(_uid, col_arr, cell_value):
@@ -239,7 +385,7 @@ def single_submission_xml(
     group_arr = col_name.split("/")
     if len(group_arr) >= 2: #TODO MAKE SURE IT DEALS W NESTED GROUPS
        # _uid = group_element(_uid, str(col_name), str(cell_value))
-        _uid = nested_group_element(_uid, str(col_name), str(cell_value))
+        _uid = nested_group_element(_uid, group_arr, str(cell_value))
         return all_empty, formatted_uuid
 
     if not (
@@ -292,9 +438,12 @@ def general_xls_to_xml(
 
         all_empty = True
         formatted_uuid = "uuid:"
+        index = None
         # Iterate through cells in the row and create corresponding XML elements
         for col_num, cell_value in enumerate(row, start=1):
             col_name = headers[col_num - 1]
+            if col_name == '_index': 
+                index = str(cell_value)
             if col_name == "":
                 continue
             all_empty, formatted_uuid = single_submission_xml(
@@ -305,9 +454,14 @@ def general_xls_to_xml(
             print(
                 "Warning: Data may include one or more blank responses where no questions were answered."
             )
+      #  _uid = ET.ElementTree(_uid)
+      # _uid.write("uid.xml")
 
         # iterate through other sheets to create repeat groups, and append to xml
-        repeat_elements = repeat_groups(_uid, formatted_uuid, workbook)
+        repeat_elements = new_repeat(_uid, formatted_uuid, workbook, index)
+#        _repeat = ET.ElementTree(repeat_elements)
+ #       _repeat.write("xm.xml")
+
         if repeat_elements != None:
             _uid = repeat_elements
 
@@ -332,6 +486,8 @@ def general_xls_to_xml(
     previous.text = None
     root.append(results)
 
+    root = ET.ElementTree(root)
+    #root.write("./um.xml")
     workbook.close()
     
     return root
