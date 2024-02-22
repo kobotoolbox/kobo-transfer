@@ -289,35 +289,6 @@ def repeat_groups(submission_xml, uuid, workbook):
     return submission_xml
 
 
-
-def initial_repeat(_uid, col_arr, cell_value):
-    """When xlsx data doesn't have a uuid (initial transfer to kobo), repeating group responses created with this method.
-    All questions in repeat group should have an equal number of responses, even if a response is blank. If question 1 in repeating group responses are {a, b, c},
-    question 2 responses need to have same number so indices match {1,,3}
-    expected label to indicate repeat group: repeat/{group_name}/{question}
-    """
-    # repeat/group_name/question
-    group_name = col_arr[1]
-    responses = cell_value.split(",")
-    elements = _uid.findall(".//" + group_name)
-    if not elements:
-        # when initial group doesn't exist, create element with group name, and subelement with question label and response
-        for response in responses:
-            element = ET.SubElement(_uid, group_name)
-            subelement = ET.SubElement(element, col_arr[2])
-            subelement.text = response
-    else:
-        if len(elements) != len(responses):
-            raise Exception(
-                "Repeat group transfer failed. They should be saved in order with commas seperating each repeat response. No response should have a comma within it."
-            )
-        for group_el, response in zip(elements, responses):
-            subelement = ET.SubElement(group_el, col_arr[2])
-            subelement.text = response
-
-    return _uid
-
-
 def open_xlsx(excel_file_path):
     """opens xlsx, and returns workbook"""
     try:
