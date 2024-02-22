@@ -132,7 +132,7 @@ def new_repeat(submission_xml, uuid, workbook, submission_index):
                     col_num = headers.index(col_name)
                     cell_value = str(row[col_num])
 
-                    if cell_value is None or cell_value == "none" or cell_value == "None":
+                    if cell_value in [None, 'None', 'none']:
                         cell_value = ""
 
                     group_names = col_name.split('/')
@@ -279,7 +279,7 @@ def repeat_groups(submission_xml, uuid, workbook):
                 col_name = str(headers[col_num - 1])
                 group_arr = col_name.split("/")
 
-                if cell_value is None or cell_value == "none" or cell_value == "None":
+                if cell_value in [None, 'None', 'none']:
                     cell_value = ""
         
                 if len(group_arr) >= 2 and sheet_name in col_name: #these are the columns that contain questions 
@@ -338,9 +338,9 @@ def open_xlsx(excel_file_path):
     return workbook
 
 
-def formhub_element(uid, NSMAP, formhub_uuid):
+def formhub_element(uid, nsmap_element, formhub_uuid):
     """creates formhub element with nested uuid"""
-    _uid = ET.Element(uid, NSMAP)
+    _uid = ET.Element(uid, nsmap_element)
     fhub_el = ET.SubElement(_uid, "formhub")
     uuid_el = ET.SubElement(fhub_el, "uuid")
     uuid_el.text = formhub_uuid
@@ -369,7 +369,7 @@ def single_submission_xml(
     gtransfer, _uid, col_name, cell_value, all_empty, formatted_uuid
 ):
 
-    if cell_value is None or cell_value == "none" or cell_value == "None":
+    if cell_value in [None, 'None', 'none']:
         cell_value = ""
     else:
         all_empty = False
@@ -392,7 +392,7 @@ def single_submission_xml(
         col_name.startswith("_")
     ):  # columns automatically generated with kobo (this is after data has been downloaded from kobo)
         cell_element = ET.SubElement(_uid, col_name)
-        if col_name == "end" or col_name == "start":
+        if col_name in ['end', 'start']:
             if cell_value != "":
                 cell_value = cell_value.isoformat()
         cell_element.text = str(cell_value)
@@ -421,7 +421,7 @@ def general_xls_to_xml(
         kobo_xls_match_warnings(headers, submission_data)
 
     num_results = 0
-    NSMAP = {
+    nsmap_element = {
         "xmlns:jr": "http://openrosa.org/javarosa",
         "xmlns:orx": "http://openrosa.org/xforms",
         "id": str(uid),
@@ -434,7 +434,7 @@ def general_xls_to_xml(
         ),
         start=2,
     ):
-        _uid = formhub_element(uid, NSMAP, formhub_uuid)
+        _uid = formhub_element(uid, nsmap_element, formhub_uuid)
 
         all_empty = True
         formatted_uuid = "uuid:"
