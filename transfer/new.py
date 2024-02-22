@@ -263,7 +263,8 @@ def new_repeat(submission_xml, uuid, workbook, submission_index):
                 index = str(row[index_header])
                 parent_index = str(row[parent_index_header]) #this is the current value
 
-                if str(sheet_name) == str(sheet_names[0]): #this is only for the first sheet, because the parent is the uuid submission
+                #if str(sheet_name) == str(sheet_names[0]): #this is only for the first sheet, because the parent is the uuid submission
+                if str(sheet_name) == str(question_headers[0].split('/')[0]): #this is
                     if parent_index != submission_index: 
                         continue
                     else: 
@@ -314,7 +315,6 @@ def new_repeat(submission_xml, uuid, workbook, submission_index):
                     original_indexes = new_indexes
 
         return submission_xml
-
 
 
 
