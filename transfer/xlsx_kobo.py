@@ -31,6 +31,7 @@ def nested_group_element(_uid, group, cell_value):
 
 
 def nested_group_element(_uid, group_name, cell_value):
+    
     parent_group = _uid
     #if (_uid == None):
      #   parent_group = ET.Element(group_name[0]) 
@@ -421,7 +422,7 @@ def general_xls_to_xml(
     previous.text = None
     root.append(results)
 
-    root = ET.ElementTree(root)
+    #root = ET.ElementTree(root)
     #root.write("./um.xml")
     workbook.close()
     

@@ -49,7 +49,7 @@ def main(
 
     def transfer(all_results, url=None):
         if (xtransfer or gtransfer):
-            parsed_xml = t_general_xls_to_xml(excel_file, submission_edit_data, gtransfer, warnings)
+            parsed_xml = t_general_xls_to_xml(excel_file, submission_edit_data, warnings)
         else:
             parsed_xml = get_src_submissions_xml(xml_url=url)
 
@@ -182,5 +182,3 @@ if __name__ == '__main__':
         print('🛑 Stopping run')
         # Do something here so we can pick up again where this leaves off
         sys.exit()
-
-
