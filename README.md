@@ -34,11 +34,12 @@ pip install openpyxl pandas requests xmltodict python-dateutil
    for the source (`src`) and destination (`dest`) projects. If transfering from xls to kobo, duplicate src and destination url and token.
    
 ### Notes for General XLSX Data Transfer
-- for initial transfer from xlsx to kobo, when there is no uuid, the column header for repeat groups must be repeat/{group name}/{xml header for question in repeating group}. Each question in repeat group must have its own column in xlsx.
-- to associate media with a specific response/submission for initial transfer, when there is no _uuid column, row number of submission can be used. Media for the submission can be saved in file path ./attachments/{asset_uid}/{row_number}.
+
+- for initial transfer (no uuids), _index column is required. If initial transfer includes repeat groups spanning multiple tabs, repeat group sheets must contain columns _index, _parent_table, _parent_index. 
+- to associate media with a specific response/submission for initial transfer, when there is no _uuid column, _index of submission can be used. Media for the submission can be saved in file path ./attachments/{asset_uid}/{_index}.
+
 - for logical groups, column header can be {group name}/{xml header for question in repeating group}. The group name in the header must match Data Column Name in Kobo project.
 - for ranking data, headers must be in this format: {xml header for question}/_1st_choice, {xml header for question}/_2nd_choice, {xml header for question}/_3rd_choice, and so on.
-
 - if data downloaded from kobo as xlsx with XML values and headers, repeat groups span across multiple tabs. Script supports this, and data for these repeat group responses can be edited in the respective tabs and reuploaded.
 - to minimise errors with formatting when data needs to be cleaned, it's best to do initial transfer from xlsx, then download the kobo data from xlsx with XML values and headers. The downloaded xlsx from Kobo is best to work from since all headers will be in the format the script expects. 
 
@@ -53,8 +54,7 @@ pip install openpyxl pandas requests xmltodict python-dateutil
 - prints warning if number of questions in kobo form and xlsx form do not match
 
 ## Limitations
-- If transferring from google form xlsx data (running -gt), submissions will be duplicated each time the script is run. Even when google form xlsx data is uploaded, edited, and then reuploaded, it will show up as a new submission instead of editing the one in kobo. To avoid this, after transferring from google form xlsx into kobo once, download the kobo data in xlsx form and edit/reupload that one with the flag -xt.
-- Similarly, if running -xt for initial xlsx data without uuid, submissions will be duplicated each time script is run. To avoid, after initial transfer, download data from kobo as xlsx and edit/work with that. 
+- If running -xt for initial xlsx data without uuid, submissions will be duplicated each time script is run. To avoid, after initial transfer, download data from kobo as xlsx and edit/reupload it. 
 
 <br>
 
@@ -69,7 +69,7 @@ pip install openpyxl pandas requests xmltodict python-dateutil
 
  ## Media Upload
 Demo walks through this process:
- - for initial data upload, create folder named attachments, with subfolder name being the asset uid of form in kobo. To associate media with a specific submission, create subfolders named after the row number of the submission in the xlsx. For example, without initially having a uuid (in a case where data is imported from a different source), the file path for the media would be attachments/aMhhwTacmk9PLEQuv9etDS/2. Media within that folder must match the filename in xlsx form cell exactly.
+ - for initial data upload, create folder named attachments, with subfolder name being the asset uid of form in kobo. To associate media with a specific submission, create subfolders named _index value of the submission in the xlsx. For example, without initially having a uuid (in a case where data is imported from a different source), the file path for the media would be attachments/aMhhwTacmk9PLEQuv9etDS/2. Media within that folder must match the filename in xlsx form cell exactly.
 - if data already has uuids, create attachments folder with a subfolder asset id. Within asset id subfolder, create folders each named after uuid of a response. Media associated with each uuid should be within that folder.
 - If run.py is run with the attachments folder, media should save in kobo correctly. 
  
