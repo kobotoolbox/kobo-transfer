@@ -58,6 +58,11 @@ pip install openpyxl pandas requests xmltodict python-dateutil
 
 <br>
 
+
+- exported kobo form should not include media URL column. Otherwise it will be treated as a question and response when imported.
+- for select_one and select_multiple question types, data msut be formatted to be a single column. 
+- script only supports exported xlsx data where groups are seperated by '/'
+- script only supports xlsx export with fields from current version (not all). 
 - assumes that kobo project and xlsx form question types and labels match (does not throw error but transferred submissions will be recorded incorrectly)
 - labels in xls can not contain '/' if it is not a repeating, or logical group
 - any data transferred will be accepted by kobo. For example, if question type is number in kobo, but submission transferred is text/string, it will be saved as such. For questions types such as dropdown/select one, responses in xlsx can be any string and kobo will save (regardless of whether or not it is an option in the kobo project). 
