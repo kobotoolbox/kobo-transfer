@@ -1,4 +1,5 @@
 import string
+import re
 from datetime import datetime
 from xml.etree import ElementTree as ET
 import openpyxl
@@ -88,6 +89,7 @@ def find_n(xml, n, element_name):
 
 def new_repeat(submission_xml, uuid, workbook, submission_index):
         """method is called when there are multiple sheets in xlsx, because it is assumed to be repeat groups"""
+        #added_on_for_repeat_sheets = [_submission__submission_time	_submission__id _submission__validation_status	_submission__notes	_submission__status	_submission__submitted_by	_submission___version__	_submission__tags]
         uuid = uuid[len("uuid:") :]
         sheet_names = workbook.sheetnames 
         sheet_names = sheet_names[1:]
@@ -324,16 +326,21 @@ def single_submission_xml( _uid, col_name, cell_value, all_empty, formatted_uuid
         _uid = nested_group_element(_uid, group_arr, str(cell_value))
         return all_empty, formatted_uuid
 
-    if not (
-        col_name.startswith("_")
-    ):  # columns automatically generated with kobo (this is after data has been downloaded from kobo)
-        cell_element = ET.SubElement(_uid, col_name)
-        if col_name in ['end', 'start']:
-            if cell_value:
-                cell_value = cell_value.isoformat()
-        cell_element.text = str(cell_value)
+    #if (
+     #   col_name not in added_on_headers_during_export
+        #col_name.startswith("_")
+    #):  
+    cell_element = ET.SubElement(_uid, col_name)
+    if col_name in ['end', 'start']:
+        if cell_value:
+            cell_value = cell_value.isoformat()
+    cell_element.text = str(cell_value)
 
     return all_empty, formatted_uuid
+
+def is_geopoint_header(recent_question, col_name):
+    geopoint_patterns = r"_" + re.escape(recent_question) + r"_(latitude|longitude|altitude|precision)"
+    return re.match(geopoint_patterns, col_name) is not None
 
 
 def general_xls_to_xml(
@@ -352,6 +359,9 @@ def general_xls_to_xml(
     root = ET.Element("root")
     results = ET.Element("results")
     headers = [cell.value for cell in sheet[1]]
+    
+    # columns automatically generated with kobo (this is after data has been downloaded from kobo)
+    added_on_headers_during_export = ['_id', '_submission_time', '_validation_status', '_notes',	'_status',	'__version__', '_submitted_by', '_tags', '_index']
 
     if warnings:
         kobo_xls_match_warnings(headers, submission_data)
@@ -375,13 +385,23 @@ def general_xls_to_xml(
         all_empty = True
         formatted_uuid = "uuid:"
         index = None
+        recent_question = None
+    
         # Iterate through cells in the row and create corresponding XML elements
         for col_num, cell_value in enumerate(row, start=1):
             col_name = headers[col_num - 1]
             if col_name == '_index': 
                 index = str(cell_value)
+            
             if not col_name:
                 continue
+            
+            geopoint = is_geopoint_header(str(recent_question), col_name)
+            if geopoint or col_name in added_on_headers_during_export: 
+                continue
+           
+            recent_question = col_name
+
             all_empty, formatted_uuid = single_submission_xml(
                 _uid, col_name, cell_value, all_empty, formatted_uuid
             )
@@ -402,14 +422,15 @@ def general_xls_to_xml(
             _uid = repeat_elements
 
         version = ET.Element("__version__")
-        version.text = __version__
+        version.text = str(__version__)
         _uid.append(version)
 
         formatted_uuid = meta_element(_uid, formatted_uuid)
 
         # for initial transfer (without uuids), attachments are saved with row numbers
         # row number folder is renamed to uuid to complete transfer to kobo and associate attachment to specific response
-        rename_media_folder(submission_data, formatted_uuid[len("uuid:") :], row_num)
+
+        rename_media_folder(submission_data, formatted_uuid[len("uuid:") :], index)
         results.append(_uid)
         num_results += 1
 
@@ -422,8 +443,8 @@ def general_xls_to_xml(
     previous.text = None
     root.append(results)
 
-    #root = ET.ElementTree(root)
-    #root.write("./um.xml")
-    workbook.close()
+    root = ET.ElementTree(root)
+   # root.write("./um.xml")
+    #workbook.close()
     
     return root
