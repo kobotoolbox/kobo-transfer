@@ -87,10 +87,10 @@ def find_n(xml, n, element_name):
             return element
     return None
 
-def new_repeat(submission_xml, uuid, workbook, submission_index):
+def new_repeat(submission_xml, workbook, submission_index):
         """method is called when there are multiple sheets in xlsx, because it is assumed to be repeat groups"""
         #added_on_for_repeat_sheets = [_submission__submission_time	_submission__id _submission__validation_status	_submission__notes	_submission__status	_submission__submitted_by	_submission___version__	_submission__tags]
-        uuid = uuid[len("uuid:") :]
+        #uuid = uuid[len("uuid:") :] #TODO
         sheet_names = workbook.sheetnames 
         sheet_names = sheet_names[1:]
 
@@ -295,46 +295,49 @@ def meta_element(_uid, formatted_uuid):
             </meta>
     }"""
     meta = ET.Element("meta")
-    if formatted_uuid == "uuid:":
-        formatted_uuid = generate_new_instance_id()[1]
+    if formatted_uuid is None: #uuid will be generated here when xlsx doesn't contain header _uuid
+        formatted_uuid = "uuid:"
+        formatted_uuid = formatted_uuid + generate_new_instance_id()[1]
+        print("here")
     instanceId = ET.SubElement(meta, "instanceID")
     deprecatedId = ET.SubElement(meta, "deprecatedID")
-    instanceId.text = formatted_uuid
-    deprecatedId.text = formatted_uuid
+    instanceId.text = str(formatted_uuid)
+    deprecatedId.text = str(formatted_uuid)
     _uid.append(meta)
     return formatted_uuid
 
 
-def single_submission_xml( _uid, col_name, cell_value, all_empty, formatted_uuid
+
+def single_submission_xml( _uid, col_name, cell_value, all_empty
 ):
+#TODO, OTHER THAN THE IF CONDITION, FORMATTED_UUID ALWAYS RETURNS NONE
+
     if cell_value in [None, 'None', 'none']:
         cell_value = ""
     else:
         all_empty = False
 
     # if xlsx data is downloaded from kobo, it will contain this column
+    formatted_uuid = None
     if col_name == "_uuid":
         if not cell_value:  # if there is no uuid specified, new one will be generated
-            formatted_uuid = formatted_uuid + generate_new_instance_id()[1]
+            formatted_uuid = generate_new_instance_id()[1] #TODO CHANGED HERE
         else:
-            formatted_uuid = formatted_uuid + str(cell_value)
+            formatted_uuid = 'uuid:' + str(cell_value) #TODO CHANGED HERE
+        return all_empty, formatted_uuid
 
     # column headers that include / indicate {group_name}/{question}
     group_arr = col_name.split("/")
-    if len(group_arr) >= 2: #TODO MAKE SURE IT DEALS W NESTED GROUPS
-       # _uid = group_element(_uid, str(col_name), str(cell_value))
+    if len(group_arr) >= 2: 
         _uid = nested_group_element(_uid, group_arr, str(cell_value))
         return all_empty, formatted_uuid
-
-    #if (
-     #   col_name not in added_on_headers_during_export
-        #col_name.startswith("_")
-    #):  
+    
     cell_element = ET.SubElement(_uid, col_name)
     if col_name in ['end', 'start']:
         if cell_value:
             cell_value = cell_value.isoformat()
     cell_element.text = str(cell_value)
+
 
     return all_empty, formatted_uuid
 
@@ -361,6 +364,7 @@ def general_xls_to_xml(
     headers = [cell.value for cell in sheet[1]]
     
     # columns automatically generated with kobo (this is after data has been downloaded from kobo)
+
     added_on_headers_during_export = ['_id', '_submission_time', '_validation_status', '_notes',	'_status',	'__version__', '_submitted_by', '_tags', '_index']
 
     if warnings:
@@ -368,8 +372,6 @@ def general_xls_to_xml(
 
     num_results = 0
     nsmap_element = {
-        "xmlns:jr": "http://openrosa.org/javarosa",
-        "xmlns:orx": "http://openrosa.org/xforms",
         "id": str(uid),
         "version": str(v),
     }
@@ -383,7 +385,7 @@ def general_xls_to_xml(
         _uid = formhub_element(uid, nsmap_element, formhub_uuid)
 
         all_empty = True
-        formatted_uuid = "uuid:"
+        #formatted_uuid = "uuid:"
         index = None
         recent_question = None
     
@@ -403,7 +405,7 @@ def general_xls_to_xml(
             recent_question = col_name
 
             all_empty, formatted_uuid = single_submission_xml(
-                _uid, col_name, cell_value, all_empty, formatted_uuid
+                _uid, col_name, cell_value, all_empty
             )
 
         if all_empty:
@@ -414,7 +416,7 @@ def general_xls_to_xml(
       # _uid.write("uid.xml")
 
         # iterate through other sheets to create repeat groups, and append to xml
-        repeat_elements = new_repeat(_uid, formatted_uuid, workbook, index)
+        repeat_elements = new_repeat(_uid, workbook, index)
 #        _repeat = ET.ElementTree(repeat_elements)
  #       _repeat.write("xm.xml")
 
@@ -422,15 +424,17 @@ def general_xls_to_xml(
             _uid = repeat_elements
 
         version = ET.Element("__version__")
-        version.text = str(__version__)
+        version.text = __version__
         _uid.append(version)
 
+        #TODO only need uuid: _____ for the meta eleent
         formatted_uuid = meta_element(_uid, formatted_uuid)
 
         # for initial transfer (without uuids), attachments are saved with row numbers
         # row number folder is renamed to uuid to complete transfer to kobo and associate attachment to specific response
 
-        rename_media_folder(submission_data, formatted_uuid[len("uuid:") :], index)
+        #rename_media_folder(submission_data, formatted_uuid[len("uuid:") :], index) 
+        rename_media_folder(submission_data, formatted_uuid, index) 
         results.append(_uid)
         num_results += 1
 
@@ -444,7 +448,7 @@ def general_xls_to_xml(
     root.append(results)
 
     root = ET.ElementTree(root)
-   # root.write("./um.xml")
-    #workbook.close()
+    root.write("./um.xml")
+    workbook.close()
     
     return root
