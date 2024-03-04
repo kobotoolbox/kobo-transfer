@@ -296,9 +296,8 @@ def meta_element(_uid, formatted_uuid):
     }"""
     meta = ET.Element("meta")
     if formatted_uuid is None: #uuid will be generated here when xlsx doesn't contain header _uuid
-        formatted_uuid = "uuid:"
-        formatted_uuid = formatted_uuid + generate_new_instance_id()[1]
-        print("here")
+        #formatted_uuid = "uuid:"
+        formatted_uuid = generate_new_instance_id()[0]
     instanceId = ET.SubElement(meta, "instanceID")
     deprecatedId = ET.SubElement(meta, "deprecatedID")
     instanceId.text = str(formatted_uuid)
@@ -321,7 +320,7 @@ def single_submission_xml( _uid, col_name, cell_value, all_empty
     formatted_uuid = None
     if col_name == "_uuid":
         if not cell_value:  # if there is no uuid specified, new one will be generated
-            formatted_uuid = generate_new_instance_id()[1] #TODO CHANGED HERE
+            formatted_uuid = generate_new_instance_id()[0] #TODO CHANGED HERE
         else:
             formatted_uuid = 'uuid:' + str(cell_value) #TODO CHANGED HERE
         return all_empty, formatted_uuid
