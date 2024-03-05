@@ -188,9 +188,6 @@ def group_element(_uid, group, cell_value):
 
 
 
-
-
-
 def kobo_xls_match_warnings(xls_questions, submission_data):
     config_src = Config().src
     xml_url = config_src["xml_url"] + f"?limit={30000}"
@@ -278,13 +275,15 @@ def open_xlsx(excel_file_path):
     return workbook
 
 
-def formhub_element(uid, nsmap_element, formhub_uuid):
+def add_formhub_element(nsmap_element, formhub_uuid):
     """creates formhub element with nested uuid"""
+    uid = nsmap_element["id"]
     _uid = ET.Element(uid, nsmap_element)
     fhub_el = ET.SubElement(_uid, "formhub")
     uuid_el = ET.SubElement(fhub_el, "uuid")
     uuid_el.text = formhub_uuid
     return _uid
+
 
 
 def meta_element(_uid, formatted_uuid):
@@ -345,6 +344,50 @@ def is_geopoint_header(recent_question, col_name):
     return re.match(geopoint_patterns, col_name) is not None
 
 
+def initialize_elements():
+    root = ET.Element("root")
+    results = ET.Element("results")
+    return root, results
+
+def extract_submission_data(submission_data):
+    formhub_uuid = submission_data["formhub_uuid"]
+    __version__ = submission_data["__version__"]
+    return formhub_uuid, __version__
+
+
+def create_nsmap_element(submission_data):
+    v = submission_data["version"]
+    uid = submission_data["asset_uid"]
+    nsmap_element = {
+        "id": str(uid),
+        "version": str(v),
+    }
+    return nsmap_element
+
+
+# Iterate through cells in the row and create corresponding XML elements
+def process_single_row(row, headers, added_on_headers_during_export, _uid):
+    all_empty = True
+    index = None
+    recent_question = None
+    for col_num, cell_value in enumerate(row, start=1):
+        print(col_num)
+        col_name = headers[col_num - 1]
+        print(cell_value)
+        if col_name == '_index': 
+            print('in')
+            index = str(cell_value)
+        if not col_name:
+            continue
+        geopoint = is_geopoint_header(str(recent_question), col_name)
+        if geopoint or col_name in added_on_headers_during_export: 
+            continue
+        recent_question = col_name
+        all_empty, formatted_uuid = single_submission_xml(
+            _uid, col_name, cell_value, all_empty
+        )
+    return index, formatted_uuid, all_empty
+
 def general_xls_to_xml(
     excel_file_path, submission_data, warnings=False
 ):
@@ -353,13 +396,14 @@ def general_xls_to_xml(
         0
     ]  # first sheet should have all data, if xlsx contains other sheets, they must be for repeat groups
 
-    uid = submission_data["asset_uid"]
-    formhub_uuid = submission_data["formhub_uuid"]
-    v = submission_data["version"]
-    __version__ = submission_data["__version__"]
+    #uid = submission_data["asset_uid"]
+    #formhub_uuid = submission_data["formhub_uuid"]
+    #v = submission_data["version"]
+    #__version__ = submission_data["__version__"]
 
-    root = ET.Element("root")
-    results = ET.Element("results")
+    formhub_uuid, __version__= extract_submission_data(submission_data)
+    nsmap_element = create_nsmap_element(submission_data)
+    root, results = initialize_elements()
     headers = [cell.value for cell in sheet[1]]
     
     # columns automatically generated with kobo (this is after data has been downloaded from kobo)
@@ -370,10 +414,6 @@ def general_xls_to_xml(
         kobo_xls_match_warnings(headers, submission_data)
 
     num_results = 0
-    nsmap_element = {
-        "id": str(uid),
-        "version": str(v),
-    }
     for row_num, row in enumerate(
         sheet.iter_rows(
             min_row=2,
@@ -381,18 +421,28 @@ def general_xls_to_xml(
         ),
         start=2,
     ):
-        _uid = formhub_element(uid, nsmap_element, formhub_uuid)
+        _uid = add_formhub_element(nsmap_element, formhub_uuid)
+        index, formatted_uuid, all_empty = process_single_row(row, headers, added_on_headers_during_export, _uid) #TODO THIS CAUSES THE PROBLEM
 
-        all_empty = True
+        #problem is that all are returning none, none false
+        #that should not be happening 
+       # print(index)
+       # print(formatted_uuid)
+        #print(all_empty)
+
+
+        """all_empty = True
         #formatted_uuid = "uuid:"
         index = None
         recent_question = None
-    
         # Iterate through cells in the row and create corresponding XML elements
         for col_num, cell_value in enumerate(row, start=1):
             col_name = headers[col_num - 1]
+            print(col_name)
+            print(cell_value)
             if col_name == '_index': 
                 index = str(cell_value)
+                print('in here')
             
             if not col_name:
                 continue
@@ -405,7 +455,7 @@ def general_xls_to_xml(
 
             all_empty, formatted_uuid = single_submission_xml(
                 _uid, col_name, cell_value, all_empty
-            )
+            )"""
 
         if all_empty:
             print(
@@ -416,8 +466,6 @@ def general_xls_to_xml(
 
         # iterate through other sheets to create repeat groups, and append to xml
         repeat_elements = new_repeat(_uid, workbook, index)
-#        _repeat = ET.ElementTree(repeat_elements)
- #       _repeat.write("xm.xml")
 
         if repeat_elements is not None:
             _uid = repeat_elements
@@ -441,9 +489,9 @@ def general_xls_to_xml(
     count = ET.SubElement(root, "count")
     count.text = str(num_results)
     next = ET.SubElement(root, "next")
-    next.text = None
+    next.text = "None"
     previous = ET.SubElement(root, "previous")
-    previous.text = None
+    previous.text = "None"
     root.append(results)
 
     root = ET.ElementTree(root)
