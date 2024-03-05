@@ -12,6 +12,10 @@ from .media import rename_media_folder
 from .xml import generate_new_instance_id
 
 def find_n(xml, n, element_name):
+    """
+    finds nth occurence of tag in xml and returns the element
+    used to append data to correct repeat group 
+    """
     occurrences = 0
     for element in xml.iter(element_name):
         occurrences += 1
@@ -34,7 +38,8 @@ def check_for_group(_uid, group_name):
     
     return _uid
 
-def combine_attempt(group_name, cell_value, parent_group = None):
+def create_group(group_name, cell_value, parent_group = None):
+    
     if parent_group is None:
         initial = ET.Element(group_name[0])
         #group_name = group_name[1:] #root is initial, search for elements after it when you use .find//
@@ -272,10 +277,10 @@ def new_repeat(submission_xml, workbook, submission_index):
                     #when there is group within a repeat group, this is ok, since can still start the elements from the sheetname
                     #HOWEVER, need different condition when the repeat group is nested in a group
                     if mini_group is None: #this is for first column of the sheet, creates all elements in header starting from spreadsheet name
-                        mini_group = combine_attempt(group_names[index_of_sheet_group:], str(cell_value)) #this is from the top
+                        mini_group = create_group(group_names[index_of_sheet_group:], str(cell_value)) #this is from the top
                         #mini_group = group_section(group_names[index_of_sheet_group:], str(cell_value)) #this is from the top
                     else: #following columns of the sheet (nest the elements, or append to the elements created from first column)
-                        mini_group = combine_attempt(group_names[index_of_sheet_group:], str(cell_value), mini_group)
+                        mini_group = create_group(group_names[index_of_sheet_group:], str(cell_value), mini_group)
                         #mini_group = nested_group_element(mini_group, group_names[index_of_sheet_group:], str(cell_value)) #TODO OOP THIS DOESNT SEEM TO BE THE PROBLEM
                 
 
@@ -442,7 +447,11 @@ def open_xlsx(excel_file_path):
 
 
 def add_formhub_element(nsmap_element, formhub_uuid):
-    """creates formhub element with nested uuid"""
+    """
+    creates formhub element in xml for each submission
+
+    :param nsmap_element: #TODO
+    """ 
     uid = nsmap_element["id"]
     _uid = ET.Element(uid, nsmap_element)
     fhub_el = ET.SubElement(_uid, "formhub")
@@ -452,12 +461,14 @@ def add_formhub_element(nsmap_element, formhub_uuid):
 
 
 def add_meta_element(_uid, formatted_uuid):
-    """meta tag
+    """creates element in xml with meta tag. Meta contains instanceId and deprecatedId elements and appears at end of each submission. 
+    Format is as follows:
           <meta>
                 <instanceID>uuid:a0ea37ef-ac71-434b-93b6-1713ef4c367f</instanceID>
                 <deprecatedID>
             </meta>
-    }"""
+
+    """
     meta = ET.Element("meta")
     if formatted_uuid is None: #uuid will be generated here when xlsx doesn't contain header _uuid
         #formatted_uuid = "uuid:"
@@ -471,6 +482,10 @@ def add_meta_element(_uid, formatted_uuid):
 
 
 def extract_uuid(cell_value):
+    """
+    if uuid is not present in xlsx, it generates a uuid for the submission
+    othrerwise, it extracts uuid from cell and returns it
+    """
     formatted_uuid = None
     if not cell_value:  # if there is no uuid specified, new one will be generated
         formatted_uuid = generate_new_instance_id()[0] 
@@ -481,7 +496,6 @@ def extract_uuid(cell_value):
 
 def single_submission_xml( _uid, col_name, cell_value, all_empty
 ):
-#TODO, OTHER THAN THE IF CONDITION, FORMATTED_UUID ALWAYS RETURNS NONE
     formatted_uuid = None
     if cell_value in [None, 'None', 'none']:
         cell_value = ""
@@ -491,11 +505,10 @@ def single_submission_xml( _uid, col_name, cell_value, all_empty
     # if xlsx data is downloaded from kobo, it will contain this column
     if col_name == "_uuid":
         formatted_uuid = extract_uuid(cell_value)
-        #return all_empty, formatted_uuid
     
     # column headers that include / indicate {group_name}/{question}
     elif len(col_name.split('/')) >= 2: 
-        _uid = combine_attempt(col_name.split('/'), str(cell_value), _uid)
+        _uid = create_group(col_name.split('/'), str(cell_value), _uid)
     else: 
         cell_element = ET.SubElement(_uid, col_name)
         if col_name in ['end', 'start']:
@@ -507,6 +520,11 @@ def single_submission_xml( _uid, col_name, cell_value, all_empty
 
 
 def is_geopoint_header(recent_question, col_name):
+    """
+    returns false if column header should be treated should be treated as a question and
+    returns true if column header should be ignored since it is part of geopoint/geoline type
+    used to filter out headers that follow pattern of _<question_name>_latitude etc. 
+    """
     geopoint_patterns = r"_" + re.escape(recent_question) + r"_(latitude|longitude|altitude|precision)"
     return re.match(geopoint_patterns, col_name) is not None
 
@@ -547,7 +565,10 @@ def process_single_row(row, headers, added_on_headers_during_export, _uid):
     return index, formatted_uuid, all_empty
 
 def initialize_elements():
-    #added and works
+    """
+    creates and returns initial xml elements for data.
+    root and results will be appended to as xlsx is parsed
+    """
     root = ET.Element("root")
     results = ET.Element("results")
     return root, results
@@ -612,6 +633,9 @@ def test_by_writing(root):
     root.write("./um.xml")
 
 def add_version_and_meta_element(_uid, formatted_uuid, __version__):
+    """
+    creates xml elements at the end of submission stating version number and meta data
+    """
     version = ET.Element("__version__")
     version.text = __version__
     _uid.append(version)
@@ -620,6 +644,9 @@ def add_version_and_meta_element(_uid, formatted_uuid, __version__):
 
 
 def add_initial_elements(root, num_results, results):
+    """
+    creates xml elements that appear prior to the results data (count, next, previous) and appends it
+    """
     count = ET.SubElement(root, "count")
     count.text = str(num_results)
     next = ET.SubElement(root, "next")
