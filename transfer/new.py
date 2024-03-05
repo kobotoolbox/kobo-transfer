@@ -574,7 +574,7 @@ def initialize_elements():
     results = ET.Element("results")
     return root, results
 
-def general_xls_to_xml(
+def t_general_xls_to_xml(
     excel_file_path, submission_data, warnings=False
 ):
     workbook = open_xlsx(excel_file_path)

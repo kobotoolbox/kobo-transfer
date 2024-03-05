@@ -70,19 +70,13 @@ def create_group(group_name, cell_value, parent_group = None):
 
 def new_repeat(submission_xml, workbook, submission_index):
         """method is called when there are multiple sheets in xlsx, because it is assumed to be repeat groups"""
-        #uuid = uuid[len("uuid:") :]
         sheet_names = workbook.sheetnames 
-        #sheet_names = sheet_names[1:]
-
         original_indexes = [] #cleared every time its a new sheet. 
-
         for sheet_name in sheet_names[1:]:
-        #for sheet_name in sheet_names:
             new_indexes = []
             sheet = workbook[sheet_name]
             headers = [cell.value for cell in sheet[1]] 
             try:
-               # submission_uid_header = headers.index("_submission__uuid")
                 index_header = headers.index("_index")
                 parent_index_header = headers.index('_parent_index')
                 parent_table_header = headers.index('_parent_table_name')
@@ -94,17 +88,8 @@ def new_repeat(submission_xml, workbook, submission_index):
 
             question_headers = [item for item in headers if not item.startswith('_')] 
 
-            #assumes question headers all have same path, but this is not true
-            #if there is group within a repeat group, question headers might be different
-
-            #[aw4/pet, aw4/ve/q]
-
             #loop through the question headers and make sure that none of them start with a non-repeating group
             #if they do start with a non-repeating group, make sure that its in the submission_uid already
-            #if its not, you need to create it, and cut the header to start from the repeating group !
-            #list1 = ['oh/my/lol', 'oh/no/my/lol', 'oh/what/my/okay/lol']
-            #list2 = ['my', 'lol']
-            
             non_repeat_groups = []
             
             for column in question_headers:
@@ -119,27 +104,7 @@ def new_repeat(submission_xml, workbook, submission_index):
             
             for normal_group in non_repeat_groups:
                 check_for_group(submission_xml, normal_group.split('/'))
-        
 
-            #print(question_headers)
-           
-
-            #for case3 there are no question headers
-            #you can't create the element because you don't know where they are going to go... 
-            #if they are nested you have nowhere to put them. 
-
-
-
-            #you don't want to create any elements
-            #you want to make sure that you are looking at relevant indexes tho
-            #check if the parent table is equal to the name of the first sheet
-            #if it is, look for submissionid match
-            #save these indexes as original indexes
-            #continue to next sheet 
-
-
-
-            #print(non_repeat_groups)
             #for each of the elements in non_repeat_groups, make sure it is in submission_uid
             #if it is, do nothing
             #if it is not, edit submission_uid and add the group
@@ -151,36 +116,6 @@ def new_repeat(submission_xml, workbook, submission_index):
                 parent_index = str(row[parent_index_header]) #this is row's parent value
                 parent_table = str(row[parent_table_header])
                 group_to_appendto = None
-
-
-
-                #so you broke it up into one condition where its the og
-                #so parents have to match passed in
-
-                #other condition is when parent refers to a different sheet, not og sheet
-
-
-                #if starting element of the group is the repeat group (same as sheet name)
-                #this indicates that it's parent will be submission_uid
-                #it will be directly appended, not nested in anything
-
-                #if question_headers == []:
-                     #for case3 there are no question headers
-                    #you don't want to create any elements
-                    #you want to make sure that you are looking at relevant indexes tho
-                    #check if the parent table is equal to the name of the first sheet
-                    #if it is, look for submissionid match
-                    #save these indexes as original indexes
-                    #continue to next sheet
-                    #if parent_table == str(sheet_names[0]):
-                        #if parent_index != submission_index:
-                         #   continue
-                        #else: 
-                         #   original_indexes.append(index)
-                    #continue
-
-             #   print(parent_table)
-              #  print(str(sheet_names[0]))
                 
                 #if str(sheet_name) == str(question_headers[0].split('/')[0]):  #because the string ur getting is home..., however no sheet_name called home
                 if parent_table == str(sheet_names[0]):
@@ -188,67 +123,15 @@ def new_repeat(submission_xml, workbook, submission_index):
                     if parent_index != submission_index: 
                         continue
                     else:
-                
                         #populate original_indexes with index of the rows that haave parent_group == passed in value from first sheet
-
                         original_indexes.append(index) #first sheet, makes sure this is not empty.. 
-                        
-                        #for case3 there are no question headers
-                        #you don't want to create any elements
-                        #you want to make sure that you are looking at relevant indexes tho
-                        #check if the parent table is equal to the name of the first sheet
-                        #if it is, look for submissionid match
-                        #save these indexes as original indexes
-                        #continue to next sheet
-                
-                #currently this condition is whenever repeating group is not being directly appended to the submission_xml
-                #the repeat group for this sheet is nested
-                #for josh's case, it's not being directly appended to submission_xml, because parent is 'home'
-                #TODO: need to add a condition here
-                #element_nonrepeat_group = None
-
-                #nested, but if current repeat group is not a repeat group
-
-                #elif original_indexes == []: #indicates that parent group is not a repeat group
-                 #   lookingfor = str(question_headers[0].split('/')[0])
-                  #  group_to_appendto = submission_xml.find(".//" + lookingfor)
-    
-                    #therefore, the parent must be a group in the submission_xml
-                    #group_tolook_for = question_headers[0].split('/')[0]
-                    #print("yas")
-                
-
-                #maybe
-
-                #repeat group is nested, therefore parent indexes will be another repeat group
-                #if its another sheet, only relevant columns should be the ones where parent_index is in original_indexes list
+                     
                 else: 
-                    #TODO: josh case comes here so thats good
-                    #in josh case original_indexes is empty... therefore never continues
-                    #in josh case it NEVER goes into the first condition because its doing the if condition based on sheet_name
-                    #need to populate original indexes.... 
-
-
                     print(original_indexes)
                     if parent_index not in original_indexes:  #you have to see if its part of the original indexes
                         continue
                     else: 
                         new_indexes.append(index)
-
-        
-                #iterating through each column
-                #so each mini group only refers to a single row
-                #its refreshed to None at every row iter
-                #so group op5 is created for the first column with group section
-                #and then groupwm is created
-                #and then you are now looking at wm95, and you have to append it to the group op5 etc..
-
-                #if question_headers == []:
-                    #create the group 
-                    #but you can't create the gorup... 
-
-                #now ur in the next sheet 
-
                 
                 for col_name in question_headers: 
                     col_num = headers.index(col_name)
@@ -263,26 +146,12 @@ def new_repeat(submission_xml, workbook, submission_index):
                     #you start the repeat stuff from when repeat sheet name is mentioned!
                     index_of_sheet_group = group_names.index(str(sheet_name)) 
                     
-                    """
-                    JOSH CASE WORKED WITHOUT THIS??? SO FIGURE OUT IF YOU EVEN NEED IT
-                    BOTH W/O AND WITH GAVE SAME RESUL
-                    if index_of_sheet_group != 0:
-                        parent_of_sheet_group = group_names[index_of_sheet_group - 1]
-                        #when a repeat group is within a group... 
-                        if parent_of_sheet_group not in sheet_names: #when parent group is not a repeat group
-                            group_to_appendto = submission_xml.find(".//" + str(parent_of_sheet_group))
-                    """
-                    #TODO 
-                    #all code below is dependent on sheet name since mini group starts from wtvr the sheetname/repeating group is
                     #when there is group within a repeat group, this is ok, since can still start the elements from the sheetname
                     #HOWEVER, need different condition when the repeat group is nested in a group
                     if mini_group is None: #this is for first column of the sheet, creates all elements in header starting from spreadsheet name
                         mini_group = create_group(group_names[index_of_sheet_group:], str(cell_value)) #this is from the top
-                        #mini_group = group_section(group_names[index_of_sheet_group:], str(cell_value)) #this is from the top
                     else: #following columns of the sheet (nest the elements, or append to the elements created from first column)
                         mini_group = create_group(group_names[index_of_sheet_group:], str(cell_value), mini_group)
-                        #mini_group = nested_group_element(mini_group, group_names[index_of_sheet_group:], str(cell_value)) #TODO OOP THIS DOESNT SEEM TO BE THE PROBLEM
-                
 
                     #test_by_writing(mini_group)
 
@@ -294,69 +163,21 @@ def new_repeat(submission_xml, workbook, submission_index):
                     if (str(sheet_name) == group_names[0]): #when initial parent repeat group (the one it starts with) is same as sheet. 
                         submission_xml.append(mini_group)
                 
-                        
-                        #so in nestedjosh case2, the header says home/repeat/skdlajf, so it won't enter this. actually that could be ok 
-                        #itll enter the next condition
-                        #in the next condition, it splits the header... 
-                        #finds the occurence of 
-
                     if (str(sheet_name) != group_names[0]): #if its not the first sheet/first parent element
                         print(sheet_name)
             
-                        um = question_headers[0].split('/')
-                            #with an extra groups in some columns, above code is fine. 
-                            #this is where problems might start.
-                            #TODO NOT ALL HEADERS IN SINGLE REPEAT GROUP ARE UNDER SAME PATH.... but it still works lol
-
-                        #TODO: not needed for josh case
-                        #if group_to_appendto != None:
-                            #element = group_to_appendto
-                        
-
-
-                
-
-
-                        
-
-
-                       
+                        um = question_headers[0].split('/')                       
                             #ok so when you do um[index_of_sheet_group-1], you are assuming that the parent group is a repeating group
                             #you are finding the one right before your current sheet index (like where in the header ur current sheet is found)
                             #pass in submission to append to, the nth mention of parent to find, parent group of the element created 
                         element = find_n(submission_xml, original_indexes.index(parent_index) + 1, um[index_of_sheet_group-1])
-
-                            #IF CONDITION
-                        #WHAT IF REPEAT GROUP HASN'T BEEN CREATED YET..
-                        #take all the elements before it 
-                        #what if its mutliple repeat groups that havne't been created yet
-                        #if parent has not been created yet 
-                        #then this wil be blank uh oh.... 
-                            #if element is None: 
-                             #   index_of_parent_group = group_names.index(index_of_sheet_group-1) 
-                              #  element = create_repeat_element(submission_xml, group_names[0:index_of_parent_group])
-                              #if the parent hasn't been created yet
-                        #we KNOW that it is a repeat group that hasn't been created
-                        #check the sheet names... if it is within the sheetname. and it is the parent_table
-                        #WHAT IF THERE ARE TWO BLANKISH REPEATGROUPS IN A ROW
-                        #TODOTODOTODODOTODO 
-                        #TODO MAJOR HERE
-                        #so we actually need to append the mini group... 
-                        #create the repeat group before it and nest the whole mini group within it
-                        #
-
-        
                         element.append(mini_group)
 
                     if row == sheet.max_row:
                         original_indexes = new_indexes
-                
-        
+
        # test_by_writing(submission_xml)
-                    
-
         return submission_xml
-
 
 def kobo_xls_match_warnings(xls_questions, submission_data):
     config_src = Config().src
@@ -600,9 +421,6 @@ def general_xls_to_xml(
         start=2,
     ):
         _uid = add_formhub_element(nsmap_element, formhub_uuid)
-        #all_empty = True
-        #index = None
-        #recent_question = None
         index, formatted_uuid, all_empty = process_single_row(row, headers, added_on_headers_during_export, _uid)        
         if all_empty:
             print(
