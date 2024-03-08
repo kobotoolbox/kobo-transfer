@@ -272,23 +272,17 @@ def open_xlsx(excel_file_path):
 
 
 
-def add_formhub_element(nsmap_element, formhub_uuid):
+def add_formhub_element(nsmap_dict, formhub_uuid):
     """
     creates and returns initial element for the submission )example of the format is <aDVansdqUpnpUhGxy8 id="aDVansdqUpnpUhGxy8" version="3 (2022-03-08 10:33:24)">)
     and the formhub element nested within it. 
 
-    :param nsmap_element: dictionary containing uid and version
+    :param nsmap_dict: dictionary containing uid and version
     """ 
-    uid = nsmap_element["id"]
-
-    _uid = create_xml_element_and_tag(None, uid, None, nsmap_element)
-    #_uid = ET.Element(uid, nsmap_element)
+    uid = nsmap_dict["id"]
+    _uid = create_xml_element_and_tag(None, uid, None, nsmap_dict)
     fhub_element = create_xml_element_and_tag(_uid, 'formhub', None)
     create_xml_element_and_tag(fhub_element, 'uuid', str(formhub_uuid))
-    
-    #fhub_el = ET.SubElement(_uid, "formhub")
-    #uuid_el = ET.SubElement(fhub_el, "uuid")
-    #uuid_el.text = formhub_uuid
     return _uid
 
 
@@ -311,8 +305,6 @@ def add_meta_element(_uid, formatted_uuid):
     #if there is no uuid or uuid is blank, this means it's an initial submission. you will not create the deprecated element. just create a new uuid. 
     #meta = ET.Element("meta")
     meta = create_xml_element_and_tag(None, 'meta', None)
-
-    #instanceId = ET.SubElement(meta, "instanceID")
     instanceId = create_xml_element_and_tag(meta, 'instanceID', None)
 
     if formatted_uuid is None: #uuid will be generated here when xlsx doesn't contain header _uuid
@@ -322,12 +314,6 @@ def add_meta_element(_uid, formatted_uuid):
         create_xml_element_and_tag(meta, 'deprecatedID', str(formatted_uuid))
         instanceId.text = str(generate_new_instance_id()[1])
         formatted_uuid = instanceId.text
-        
-        #deprecatedId = ET.SubElement(meta, "deprecatedID")
-        #deprecatedId.text = str(formatted_uuid) #take old isntance id and save it as deprecatedid
-
-       # instanceId.text = str(generate_new_instance_id()[1])
-       # formatted_uuid = instanceId.text
 
     _uid.append(meta)
 
@@ -405,9 +391,6 @@ def single_submission_xml( _uid, col_name, cell_value
 
         create_xml_element_and_tag(_uid, col_name, str(cell_value)) 
 
-        #cell_element = ET.SubElement(_uid, col_name)
-        #cell_element.text = str(cell_value)
-
     return all_empty, formatted_uuid
 
 
@@ -429,15 +412,15 @@ def extract_submission_data(submission_data):
 
 def create_nsmap_dict(submission_data): 
     """ extracts version and asset uid from submission_data to create 
-    dictionary containing them. this dictionary (nsmap_element) will be used to create the first parent xml element 
+    dictionary containing them. this dictionary (nsmap_dict) will be used to create the first parent xml element 
     for a single submission """
     v = submission_data["version"]
     uid = submission_data["asset_uid"]
-    nsmap_element = {
+    nsmap_dict = {
         "id": str(uid),
         "version": str(v),
     }
-    return nsmap_element
+    return nsmap_dict
 
 # Iterate through cells in the row and create corresponding XML elements
 def process_single_row(row, headers, added_on_headers_during_export, _uid):
@@ -470,8 +453,6 @@ def initialize_elements():
     """
     root = create_xml_element_and_tag(None, 'root', None)
     results = create_xml_element_and_tag(None, 'results', None)
-   # root = ET.Element("root")
-   # results = ET.Element("results")
     return root, results
 
 def general_xls_to_xml(
@@ -487,7 +468,7 @@ def general_xls_to_xml(
     ]  # first sheet should have all data, if xlsx contains other sheets, they must be for repeat groups
 
     formhub_uuid, __version__= extract_submission_data(submission_data)
-    nsmap_element = create_nsmap_dict(submission_data)
+    nsmap_dict = create_nsmap_dict(submission_data)
     root, results = initialize_elements()
     headers = [cell.value for cell in sheet[1]]
     # columns automatically generated with kobo (this is after data has been downloaded from kobo)
@@ -496,16 +477,16 @@ def general_xls_to_xml(
     if warnings:
         kobo_xls_match_warnings(headers, submission_data)
     
-    num_results = 0
+   # num_results = 0
     for  row in sheet.iter_rows(
             min_row=2,
             values_only=True,
         ):
-        _uid = add_formhub_element(nsmap_element, formhub_uuid)
+        _uid = add_formhub_element(nsmap_dict, formhub_uuid)
         
         #check if submission xml needs to be created
-        if not eval(str(row[headers.index('$edited')])):
-            continue
+        if not eval(str(row[headers.index('$edited')])): #currently all false or blank $edited submissions are being skipped
+            continue 
 
 
         index, formatted_uuid, all_empty = process_single_row(row, headers, added_on_headers_during_export, _uid)        
@@ -521,9 +502,9 @@ def general_xls_to_xml(
         # index folder is renamed to uuid to complete transfer to kobo and associate attachment to specific response
         rename_media_folder(submission_data, formatted_uuid, index) 
         results.append(_uid)
-        num_results += 1
+        #num_results += 1
 
-    root =  add_data_details(root, num_results)
+    root =  add_data_details(root)
     root.append(results)
     
     test_by_writing(root)
@@ -546,18 +527,12 @@ def add_version_and_meta_element(_uid, formatted_uuid, __version__):
     return formatted_uuid
 
 
-def add_data_details(root, num_results):
+def add_data_details(root):
     """
     creates xml elements that appear prior to the results data (count, next, previous) and appends it
     """
-    create_xml_element_and_tag(root, 'count', str(num_results))
+    #print(num_results)
+   # create_xml_element_and_tag(root, 'count', str(num_results))
     create_xml_element_and_tag(root, 'next', None)
     create_xml_element_and_tag(root, 'previous', None)
-
-    #count = ET.SubElement(root, "count")
-    #count.text = str(num_results)
-    #next = ET.SubElement(root, "next")
-    #next.text = 'None'
-   # previous = ET.SubElement(root, "previous")
-    #previous.text = 'None'
     return root
