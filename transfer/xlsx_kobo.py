@@ -22,7 +22,7 @@ def find_n(xml, n, element_name):
             return element
     return None
 
-def check_for_group(_uid, group_name):
+"""def check_for_group(_uid, group_name):
     parent_group = _uid
     group_element = None
     for group in group_name: 
@@ -35,7 +35,7 @@ def check_for_group(_uid, group_name):
         parent_group = group_element
         group_element = None
     
-    return _uid
+    return _uid"""
 
 def create_group(group_name, cell_value, parent_group = None):
     """
@@ -47,7 +47,6 @@ def create_group(group_name, cell_value, parent_group = None):
     """
     if parent_group is None:
         initial = create_xml_element_and_tag(None, group_name[0], None)
-        #initial = ET.Element(group_name[0])
         parent_group = initial
         print("not nested1")
     else:
@@ -63,9 +62,8 @@ def create_group(group_name, cell_value, parent_group = None):
 
         if (group_element == None):
             group_element = create_xml_element_and_tag(parent_group, group, None)
-            #group_element = ET.SubElement(parent_group, group)
 
-        if (group == group_name[-1]): #last element in group_name is the question
+        if (group == group_name[-1]) and cell_value: #last element in group_name is the question
             group_element.text = str(cell_value)
         
         parent_group = group_element
@@ -108,7 +106,7 @@ def new_repeat(submission_xml, workbook, submission_index):
 
             
             for normal_group in non_repeat_groups:
-                check_for_group(submission_xml, normal_group.split('/'))
+                create_group(normal_group.split('/'), None, submission_xml)
 
             #for each of the elements in non_repeat_groups, make sure it is in submission_uid
             #if it is, do nothing
