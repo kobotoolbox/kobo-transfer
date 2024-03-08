@@ -11,6 +11,9 @@ from transfer.xml import get_src_submissions_xml
 from .media import rename_media_folder
 from .xml import generate_new_instance_id
 
+#TODO
+#IF THERE IS NO UUID COL OR UUID COL IS BLANK, AND EDITED IS TRUE, WHAT SHOULD HAPPEN?
+#IF THERE IS NO UUID COL, AND NO EDITED COL, WHAT SHOULD HAPPEN
 
 def find_n(xml, n, element_name):
     """
@@ -461,7 +464,7 @@ def add_formhub_element(nsmap_element, formhub_uuid):
     return _uid
 
 
-def add_meta_element(_uid, formatted_uuid):
+def add_meta_element(_uid, formatted_uuid, edited):
     """creates element in xml with meta tag. Meta contains instanceId and deprecatedId elements and appears at end of each submission. 
     Format is as follows:
           <meta>
@@ -475,9 +478,13 @@ def add_meta_element(_uid, formatted_uuid):
         #formatted_uuid = "uuid:"
         formatted_uuid = generate_new_instance_id()[0]
     instanceId = ET.SubElement(meta, "instanceID")
-    deprecatedId = ET.SubElement(meta, "deprecatedID")
-    instanceId.text = str(formatted_uuid)
-    deprecatedId.text = str(formatted_uuid)
+    if (edited): 
+        deprecatedId = ET.SubElement(meta, "deprecatedID")
+        deprecatedId.text = str(formatted_uuid) #take old isntance id and save it as deprecatedid
+        instanceId.text = str(generate_new_instance_id()[0])
+        formatted_uuid = instanceId.text
+    else: 
+        instanceId = formatted_uuid
     _uid.append(meta)
     return formatted_uuid
 
@@ -550,10 +557,14 @@ def process_single_row(row, headers, added_on_headers_during_export, _uid):
     all_empty = True
     index = None
     recent_question = None
+    edited = False
     for col_num, cell_value in enumerate(row, start=1):
         col_name = headers[col_num - 1]
         if col_name == '_index': 
             index = str(cell_value)
+        if col_name == '$edited': 
+            if cell_value: 
+                edited = eval(str(cell_value)) #must be true or false
         if not col_name:
             continue
         geopoint = is_geopoint_header(str(recent_question), col_name)
@@ -563,7 +574,7 @@ def process_single_row(row, headers, added_on_headers_during_export, _uid):
         all_empty, formatted_uuid = single_submission_xml(
             _uid, col_name, cell_value, all_empty
         )
-    return index, formatted_uuid, all_empty
+    return index, formatted_uuid, all_empty, edited
 
 def initialize_elements():
     """
@@ -573,6 +584,16 @@ def initialize_elements():
     root = ET.Element("root")
     results = ET.Element("results")
     return root, results
+
+
+    """
+    ok so when you see the $edited column, you are going to save the value
+    if the value is true = you will need a deprecated id 
+
+    if the value is false = you will only create the submission id tag
+    if the value is blank = you will only create the sumisison id tag
+    if it doesn't even exist, then you wil only create the subnmissio id tag    
+    """
 
 def t_general_xls_to_xml(
     excel_file_path, submission_data, warnings=False
@@ -587,7 +608,8 @@ def t_general_xls_to_xml(
     root, results = initialize_elements()
     headers = [cell.value for cell in sheet[1]]
     # columns automatically generated with kobo (this is after data has been downloaded from kobo)
-    added_on_headers_during_export = ['_id', '_submission_time', '_validation_status', '_notes',	'_status',	'__version__', '_submitted_by', '_tags', '_index']
+    added_on_headers_during_export = ['_id', '_submission_time', '_validation_status', '_notes',	'_status',	'__version__', '_submitted_by', '_tags', '_index', '$edited']
+    #these are the headers you don't want to create xml elements for
 
     if warnings:
         kobo_xls_match_warnings(headers, submission_data)
@@ -604,7 +626,7 @@ def t_general_xls_to_xml(
         #all_empty = True
         #index = None
         #recent_question = None
-        index, formatted_uuid, all_empty = process_single_row(row, headers, added_on_headers_during_export, _uid)        
+        index, formatted_uuid, all_empty, edited = process_single_row(row, headers, added_on_headers_during_export, _uid)        
         if all_empty:
             print(
                 "Warning: Data may include one or more blank responses where no questions were answered."
@@ -616,7 +638,7 @@ def t_general_xls_to_xml(
             print('here')
             _uid = repeat_elements
 
-        formatted_uuid = add_version_and_meta_element(_uid, formatted_uuid, __version__)
+        formatted_uuid = add_version_and_meta_element(_uid, formatted_uuid, __version__, edited)
 
         # for initial transfer (without uuids), each submission associated with index
         # index folder is renamed to uuid to complete transfer to kobo and associate attachment to specific response
@@ -633,14 +655,14 @@ def test_by_writing(root):
     root = ET.ElementTree(root)
     root.write("./um.xml")
 
-def add_version_and_meta_element(_uid, formatted_uuid, __version__):
+def add_version_and_meta_element(_uid, formatted_uuid, __version__, edited):
     """
     creates xml elements at the end of submission stating version number and meta data
     """
     version = ET.Element("__version__")
     version.text = __version__
     _uid.append(version)
-    formatted_uuid = add_meta_element(_uid, formatted_uuid)
+    formatted_uuid = add_meta_element(_uid, formatted_uuid, edited)
     return formatted_uuid
 
 

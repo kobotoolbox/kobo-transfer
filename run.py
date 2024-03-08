@@ -1,19 +1,16 @@
-#!/usr/bin/env python3
-
 import argparse
 import json
 import sys
 
 from helpers.config import Config
 from transfer.media import get_media, del_media
+from transfer.xlsx_kobo import general_xls_to_xml
 from transfer.xml import (
     get_src_submissions_xml,
     get_submission_edit_data,
     print_stats,
     transfer_submissions,
 )
-from transfer.xlsx_kobo import general_xls_to_xml
-
 
 def main(
     warnings,

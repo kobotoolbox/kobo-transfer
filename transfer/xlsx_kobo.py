@@ -1,15 +1,14 @@
-import string
 import re
-from datetime import datetime
-from xml.etree import ElementTree as ET
+import string
+
 import openpyxl
-import pandas as pd
-from dateutil import parser
-import requests
+from xml.etree import ElementTree as ET
+
 from helpers.config import Config
 from transfer.xml import get_src_submissions_xml
 from .media import rename_media_folder
 from .xml import generate_new_instance_id
+
 
 def find_n(xml, n, element_name):
     """
@@ -39,11 +38,16 @@ def check_for_group(_uid, group_name):
     return _uid
 
 def create_group(group_name, cell_value, parent_group = None):
-    
+    """
+    Creates and returns an xml element of nested groups.
+
+    :param group_name Header containing group split by ('/'). Example of xlsx header that would be split is [pets/pet/name_of_pet]
+    :param cell_value: value stored in the cell for a particular submission, under the group_name column. 
+    :param parent_group: None when the first string in group_name is the root. 
+    """
     if parent_group is None:
-        initial = ET.Element(group_name[0])
-        #group_name = group_name[1:] #root is initial, search for elements after it when you use .find//
-        #alternatively you can do the cnotinue thing... that you did in nested
+        initial = create_xml_element_and_tag(None, group_name[0], None)
+        #initial = ET.Element(group_name[0])
         parent_group = initial
         print("not nested1")
     else:
@@ -58,14 +62,15 @@ def create_group(group_name, cell_value, parent_group = None):
         group_element = parent_group.find(".//" + group)
 
         if (group_element == None):
-            group_element = ET.SubElement(parent_group, group)
+            group_element = create_xml_element_and_tag(parent_group, group, None)
+            #group_element = ET.SubElement(parent_group, group)
 
         if (group == group_name[-1]): #last element in group_name is the question
             group_element.text = str(cell_value)
         
         parent_group = group_element
         group_element = None
- 
+
     return initial
 
 def new_repeat(submission_xml, workbook, submission_index):
@@ -269,15 +274,21 @@ def open_xlsx(excel_file_path):
 
 def add_formhub_element(nsmap_element, formhub_uuid):
     """
-    creates formhub element in xml for each submission
+    creates and returns initial element for the submission )example of the format is <aDVansdqUpnpUhGxy8 id="aDVansdqUpnpUhGxy8" version="3 (2022-03-08 10:33:24)">)
+    and the formhub element nested within it. 
 
-    :param nsmap_element: #TODO
+    :param nsmap_element: dictionary containing uid and version
     """ 
     uid = nsmap_element["id"]
-    _uid = ET.Element(uid, nsmap_element)
-    fhub_el = ET.SubElement(_uid, "formhub")
-    uuid_el = ET.SubElement(fhub_el, "uuid")
-    uuid_el.text = formhub_uuid
+
+    _uid = create_xml_element_and_tag(None, uid, None, nsmap_element)
+    #_uid = ET.Element(uid, nsmap_element)
+    fhub_element = create_xml_element_and_tag(_uid, 'formhub', None)
+    create_xml_element_and_tag(fhub_element, 'uuid', str(formhub_uuid))
+    
+    #fhub_el = ET.SubElement(_uid, "formhub")
+    #uuid_el = ET.SubElement(fhub_el, "uuid")
+    #uuid_el.text = formhub_uuid
     return _uid
 
 
@@ -285,20 +296,41 @@ def add_meta_element(_uid, formatted_uuid):
     """creates element in xml with meta tag. Meta contains instanceId and deprecatedId elements and appears at end of each submission. 
     Format is as follows:
           <meta>
-                <instanceID>uuid:a0ea37ef-ac71-434b-93b6-1713ef4c367f</instanceID>
+                <instanceID>uuid:a0io37ef-ac71-434b-93b6-1243ef4c123f</instanceID>
                 <deprecatedID>
             </meta>
+    once meta element is created, it is appended to the xml of whole submission, and then returned. 
+
+    :param _uid is the xml representing a single submission. it is built upon and starts with the inital nsmaplement
+    :param formatted_uuid is unique instance id of the submission
+    :param edited is a boolean that is true when submission was modified, and false when unchanged
 
     """
-    meta = ET.Element("meta")
+
+    #if its #edited, you will create a new one, and move the old one to the deprecated
+    #if there is no uuid or uuid is blank, this means it's an initial submission. you will not create the deprecated element. just create a new uuid. 
+    #meta = ET.Element("meta")
+    meta = create_xml_element_and_tag(None, 'meta', None)
+
+    #instanceId = ET.SubElement(meta, "instanceID")
+    instanceId = create_xml_element_and_tag(meta, 'instanceID', None)
+
     if formatted_uuid is None: #uuid will be generated here when xlsx doesn't contain header _uuid
-        #formatted_uuid = "uuid:"
         formatted_uuid = generate_new_instance_id()[0]
-    instanceId = ET.SubElement(meta, "instanceID")
-    deprecatedId = ET.SubElement(meta, "deprecatedID")
-    instanceId.text = str(formatted_uuid)
-    deprecatedId.text = str(formatted_uuid)
+        instanceId.text = formatted_uuid
+    else:
+        create_xml_element_and_tag(meta, 'deprecatedID', str(formatted_uuid))
+        instanceId.text = str(generate_new_instance_id()[1])
+        formatted_uuid = instanceId.text
+        
+        #deprecatedId = ET.SubElement(meta, "deprecatedID")
+        #deprecatedId.text = str(formatted_uuid) #take old isntance id and save it as deprecatedid
+
+       # instanceId.text = str(generate_new_instance_id()[1])
+       # formatted_uuid = instanceId.text
+
     _uid.append(meta)
+
     return formatted_uuid
 
 
@@ -308,16 +340,52 @@ def extract_uuid(cell_value):
     othrerwise, it extracts uuid from cell and returns it
     """
     formatted_uuid = None
-    if not cell_value:  # if there is no uuid specified, new one will be generated
-        formatted_uuid = generate_new_instance_id()[0] 
-    else:
+ #   if not cell_value:  # if there is no uuid specified, new one will be generated
+  #      formatted_uuid = generate_new_instance_id()[0] 
+   # else:
+    if cell_value:
         formatted_uuid = 'uuid:' + str(cell_value) #TODO CHANGED HERE
     return formatted_uuid
 
 
-def single_submission_xml( _uid, col_name, cell_value, all_empty
+def create_xml_element_and_tag(parent, tag, text, namespace=None):
+    if tag is None:
+        raise Exception("Somethign went wrong.")
+    
+    if parent is None and text is None: 
+        if namespace is None:
+            new_element = ET.Element(tag) 
+        else:
+            new_element = ET.Element(tag, namespace) #only called for the nsmap dictionary
+    elif parent is None: 
+        new_element = ET.Element(tag)
+        new_element.text = text
+    elif text is None: 
+        new_element = ET.SubElement(parent, tag)
+    else:
+        new_element = ET.SubElement(parent, tag)
+        new_element.text = text
+
+    return new_element
+
+
+
+def single_submission_xml( _uid, col_name, cell_value
 ):
+    """
+    creates the xml for a single submission which is represented in a single row in the xlsx
+
+    :param _uid is the root element for the single submission that will be appended to as rows are parsed
+    :param col_name is the header/label of the column in xlsx 
+    :param cell_value i
+
+    returns: 
+    all_empty is a boolean that is true when the submission is blank and all questions have not been responded to
+    formatted_uuid is the unique uuid for the submission
+    """
+    all_empty = True
     formatted_uuid = None
+
     if cell_value in [None, 'None', 'none']:
         cell_value = ""
     else:
@@ -331,11 +399,14 @@ def single_submission_xml( _uid, col_name, cell_value, all_empty
     elif len(col_name.split('/')) >= 2: 
         _uid = create_group(col_name.split('/'), str(cell_value), _uid)
     else: 
-        cell_element = ET.SubElement(_uid, col_name)
         if col_name in ['end', 'start']:
             #if cell_value:
                 cell_value = cell_value.isoformat() if cell_value else ""
-        cell_element.text = str(cell_value)
+
+        create_xml_element_and_tag(_uid, col_name, str(cell_value)) 
+
+        #cell_element = ET.SubElement(_uid, col_name)
+        #cell_element.text = str(cell_value)
 
     return all_empty, formatted_uuid
 
@@ -356,7 +427,10 @@ def extract_submission_data(submission_data):
     return formhub_uuid, __version__
 
 
-def create_nsmap_element(submission_data):
+def create_nsmap_dict(submission_data): 
+    """ extracts version and asset uid from submission_data to create 
+    dictionary containing them. this dictionary (nsmap_element) will be used to create the first parent xml element 
+    for a single submission """
     v = submission_data["version"]
     uid = submission_data["asset_uid"]
     nsmap_element = {
@@ -367,13 +441,17 @@ def create_nsmap_element(submission_data):
 
 # Iterate through cells in the row and create corresponding XML elements
 def process_single_row(row, headers, added_on_headers_during_export, _uid):
-    all_empty = True
+   # all_empty = True
     index = None
     recent_question = None
+    #edited = False
     for col_num, cell_value in enumerate(row, start=1):
         col_name = headers[col_num - 1]
         if col_name == '_index': 
             index = str(cell_value)
+       # if col_name == '$edited': 
+        #    if cell_value: 
+         #       edited = eval(str(cell_value)) #must be true or false
         if not col_name:
             continue
         geopoint = is_geopoint_header(str(recent_question), col_name)
@@ -381,58 +459,62 @@ def process_single_row(row, headers, added_on_headers_during_export, _uid):
             continue
         recent_question = col_name
         all_empty, formatted_uuid = single_submission_xml(
-            _uid, col_name, cell_value, all_empty
+            _uid, col_name, cell_value
         )
     return index, formatted_uuid, all_empty
 
 def initialize_elements():
     """
-    creates and returns initial xml elements for data.
-    root and results will be appended to as xlsx is parsed
+    creates and returns initial parent xml elements for data.
+    root and results will be appended to as xlsx is parsed.
     """
-    root = ET.Element("root")
-    results = ET.Element("results")
+    root = create_xml_element_and_tag(None, 'root', None)
+    results = create_xml_element_and_tag(None, 'results', None)
+   # root = ET.Element("root")
+   # results = ET.Element("results")
     return root, results
 
 def general_xls_to_xml(
     excel_file_path, submission_data, warnings=False
 ):
+    """
+    parses entire xlsx and creates xml from it
+    returns root of the xml that can be used to transfer to kobo project
+    """
     workbook = open_xlsx(excel_file_path)
     sheet = workbook.worksheets[
         0
     ]  # first sheet should have all data, if xlsx contains other sheets, they must be for repeat groups
 
     formhub_uuid, __version__= extract_submission_data(submission_data)
-    nsmap_element = create_nsmap_element(submission_data)
+    nsmap_element = create_nsmap_dict(submission_data)
     root, results = initialize_elements()
     headers = [cell.value for cell in sheet[1]]
     # columns automatically generated with kobo (this is after data has been downloaded from kobo)
-    added_on_headers_during_export = ['_id', '_submission_time', '_validation_status', '_notes',	'_status',	'__version__', '_submitted_by', '_tags', '_index']
+    added_on_headers_during_export = ['_id', '_submission_time', '_validation_status', '_notes',	'_status',	'__version__', '_submitted_by', '_tags', '_index', '$edited']
 
     if warnings:
         kobo_xls_match_warnings(headers, submission_data)
     
     num_results = 0
-    for row_num, row in enumerate(
-        sheet.iter_rows(
+    for  row in sheet.iter_rows(
             min_row=2,
             values_only=True,
-        ),
-        start=2,
-    ):
+        ):
         _uid = add_formhub_element(nsmap_element, formhub_uuid)
+        
+        #check if submission xml needs to be created
+        if not eval(str(row[headers.index('$edited')])):
+            continue
+
+
         index, formatted_uuid, all_empty = process_single_row(row, headers, added_on_headers_during_export, _uid)        
         if all_empty:
             print(
                 "Warning: Data may include one or more blank responses where no questions were answered."
             )
-
         # iterate through other sheets to create repeat groups, and append to xml
-        repeat_elements = new_repeat(_uid, workbook, index)
-        if repeat_elements is not None:
-            print('here')
-            _uid = repeat_elements
-
+        _uid = new_repeat(_uid, workbook, index)
         formatted_uuid = add_version_and_meta_element(_uid, formatted_uuid, __version__)
 
         # for initial transfer (without uuids), each submission associated with index
@@ -441,7 +523,9 @@ def general_xls_to_xml(
         results.append(_uid)
         num_results += 1
 
-    root =  add_initial_elements(root, num_results, results)
+    root =  add_data_details(root, num_results)
+    root.append(results)
+    
     test_by_writing(root)
     workbook.close()
     return root
@@ -454,22 +538,26 @@ def add_version_and_meta_element(_uid, formatted_uuid, __version__):
     """
     creates xml elements at the end of submission stating version number and meta data
     """
-    version = ET.Element("__version__")
-    version.text = __version__
-    _uid.append(version)
+    version_element = create_xml_element_and_tag(None, '__version__', __version__) 
+    #version = ET.Element("__version__")
+    #version.text = __version__
+    _uid.append(version_element)
     formatted_uuid = add_meta_element(_uid, formatted_uuid)
     return formatted_uuid
 
 
-def add_initial_elements(root, num_results, results):
+def add_data_details(root, num_results):
     """
     creates xml elements that appear prior to the results data (count, next, previous) and appends it
     """
-    count = ET.SubElement(root, "count")
-    count.text = str(num_results)
-    next = ET.SubElement(root, "next")
-    next.text = None
-    previous = ET.SubElement(root, "previous")
-    previous.text = None
-    root.append(results)
+    create_xml_element_and_tag(root, 'count', str(num_results))
+    create_xml_element_and_tag(root, 'next', None)
+    create_xml_element_and_tag(root, 'previous', None)
+
+    #count = ET.SubElement(root, "count")
+    #count.text = str(num_results)
+    #next = ET.SubElement(root, "next")
+    #next.text = 'None'
+   # previous = ET.SubElement(root, "previous")
+    #previous.text = 'None'
     return root
