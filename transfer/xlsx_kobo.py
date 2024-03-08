@@ -9,7 +9,6 @@ from transfer.xml import get_src_submissions_xml
 from .media import rename_media_folder
 from .xml import generate_new_instance_id
 
-
 def find_n(xml, n, element_name):
     """
     finds nth occurence of tag in xml and returns the element
@@ -182,73 +181,6 @@ def new_repeat(submission_xml, workbook, submission_index):
        # test_by_writing(submission_xml)
         return submission_xml
 
-def kobo_xls_match_warnings(xls_questions, submission_data):
-    config_src = Config().src
-    xml_url = config_src["xml_url"] + f"?limit={30000}"
-    kobo_form_xml = get_src_submissions_xml(xml_url)
-    uid = submission_data["asset_uid"]
-    uid_element = kobo_form_xml.find(f".//{uid}")
-
-    kobo_form_questions = []
-    lowercase_no_punctuation_koboq = []
-
-    for subelement in uid_element:
-        kobo_form_questions.append(subelement.tag)
-        lower_no_punct_k = subelement.tag.lower()
-        lower_no_punct_k = "".join(
-            char for char in lower_no_punct_k if char not in string.punctuation
-        )
-        lower_no_punct_k = lower_no_punct_k.replace(" ", "")
-        lowercase_no_punctuation_koboq.append(lower_no_punct_k)
-
-    xls_questions = [
-        element for element in xls_questions if not element.startswith("_")
-    ]
-    lowercase_no_punctuation_xlsq = []
-    for question in xls_questions:
-        lower_no_punct_q = question.lower()
-        lower_no_punct_q = "".join(
-            char for char in lower_no_punct_q if char not in string.punctuation
-        )
-        lower_no_punct_q = lower_no_punct_q.replace(" ", "")
-        lowercase_no_punctuation_xlsq.append(lower_no_punct_q.lower())
-
-    elements_to_remove = [
-        "formhub",
-        "__version__",
-        "version",
-        "meta",
-        "start",
-        "end",
-        "Timestamp",
-    ]
-    for element in elements_to_remove:
-        if element in kobo_form_questions:
-            kobo_form_questions.remove(element)
-        if element in lowercase_no_punctuation_koboq:
-            lowercase_no_punctuation_koboq.remove(element)
-        if element in xls_questions:
-            xls_questions.remove(element)
-        if element in lowercase_no_punctuation_xlsq:
-            lowercase_no_punctuation_xlsq.remove(element)
-
-    # check if number of questions in kobo form, and number of questions in xls match
-    if len(kobo_form_questions) != len(xls_questions):
-        print(
-            "Warning: number of questions in kobo form might not match number of questions in xls"
-        )
-    elif kobo_form_questions != xls_questions:
-        # if standardised is same, but original is different
-        if lowercase_no_punctuation_koboq != lowercase_no_punctuation_xlsq:
-            print(
-                "Warning: Question labels in kobo and XLS form have slight differences. Check if capitalisation, punctuation, and spacing are consistent."
-            )
-        else:
-            # same number of questions but different labels
-            print(
-                "Warning: question labels in kobo form do not match xls labels exactly"
-            )
-
 def open_xlsx(excel_file_path):
     """opens xlsx, and returns workbook"""
     try:
@@ -301,7 +233,6 @@ def add_meta_element(_uid, formatted_uuid):
 
     #if its #edited, you will create a new one, and move the old one to the deprecated
     #if there is no uuid or uuid is blank, this means it's an initial submission. you will not create the deprecated element. just create a new uuid. 
-    #meta = ET.Element("meta")
     meta = create_xml_element_and_tag(None, 'meta', None)
     instanceId = create_xml_element_and_tag(meta, 'instanceID', None)
 
@@ -474,8 +405,8 @@ def general_xls_to_xml(
     # columns automatically generated with kobo (this is after data has been downloaded from kobo)
     added_on_headers_during_export = ['_id', '_submission_time', '_validation_status', '_notes',	'_status',	'__version__', '_submitted_by', '_tags', '_index', '$edited']
 
-    if warnings:
-        kobo_xls_match_warnings(headers, submission_data)
+#    if warnings:
+#        kobo_xls_match_warnings(headers, submission_data)
     
     for  row in sheet.iter_rows(
             min_row=2,
@@ -520,7 +451,6 @@ def add_version_and_meta_element(_uid, formatted_uuid, __version__):
     _uid.append(version_element)
     formatted_uuid = add_meta_element(_uid, formatted_uuid)
     return formatted_uuid
-
 
 def add_prev_next(root):
     """
