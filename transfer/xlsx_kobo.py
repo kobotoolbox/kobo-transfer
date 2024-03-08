@@ -356,7 +356,7 @@ def create_xml_element_and_tag(parent, tag, text, namespace=None):
 
 
 
-def single_submission_xml( _uid, col_name, cell_value
+def process_data_in_columns( _uid, col_name, cell_value
 ):
     """
     creates the xml for a single submission which is represented in a single row in the xlsx
@@ -369,9 +369,8 @@ def single_submission_xml( _uid, col_name, cell_value
     all_empty is a boolean that is true when the submission is blank and all questions have not been responded to
     formatted_uuid is the unique uuid for the submission
     """
-    all_empty = True
+    all_empty = None
     formatted_uuid = None
-
     if cell_value in [None, 'None', 'none']:
         cell_value = ""
     else:
@@ -424,7 +423,7 @@ def create_nsmap_dict(submission_data):
 
 # Iterate through cells in the row and create corresponding XML elements
 def process_single_row(row, headers, added_on_headers_during_export, _uid):
-   # all_empty = True
+    all_empty = True
     index = None
     recent_question = None
     #edited = False
@@ -441,9 +440,12 @@ def process_single_row(row, headers, added_on_headers_during_export, _uid):
         if geopoint or col_name in added_on_headers_during_export: 
             continue
         recent_question = col_name
-        all_empty, formatted_uuid = single_submission_xml(
+        all_empty, formatted_uuid = process_data_in_columns(
             _uid, col_name, cell_value
         )
+        if not all_empty: #all_empty should only be true when all cell values are blank
+            all_empty = False 
+        
     return index, formatted_uuid, all_empty
 
 def initialize_elements():
@@ -477,7 +479,6 @@ def general_xls_to_xml(
     if warnings:
         kobo_xls_match_warnings(headers, submission_data)
     
-   # num_results = 0
     for  row in sheet.iter_rows(
             min_row=2,
             values_only=True,
@@ -487,7 +488,6 @@ def general_xls_to_xml(
         #check if submission xml needs to be created
         if not eval(str(row[headers.index('$edited')])): #currently all false or blank $edited submissions are being skipped
             continue 
-
 
         index, formatted_uuid, all_empty = process_single_row(row, headers, added_on_headers_during_export, _uid)        
         if all_empty:
@@ -502,9 +502,8 @@ def general_xls_to_xml(
         # index folder is renamed to uuid to complete transfer to kobo and associate attachment to specific response
         rename_media_folder(submission_data, formatted_uuid, index) 
         results.append(_uid)
-        #num_results += 1
 
-    root =  add_data_details(root)
+    root =  add_prev_next(root)
     root.append(results)
     
     test_by_writing(root)
@@ -520,19 +519,15 @@ def add_version_and_meta_element(_uid, formatted_uuid, __version__):
     creates xml elements at the end of submission stating version number and meta data
     """
     version_element = create_xml_element_and_tag(None, '__version__', __version__) 
-    #version = ET.Element("__version__")
-    #version.text = __version__
     _uid.append(version_element)
     formatted_uuid = add_meta_element(_uid, formatted_uuid)
     return formatted_uuid
 
 
-def add_data_details(root):
+def add_prev_next(root):
     """
     creates xml elements that appear prior to the results data (count, next, previous) and appends it
     """
-    #print(num_results)
-   # create_xml_element_and_tag(root, 'count', str(num_results))
     create_xml_element_and_tag(root, 'next', None)
     create_xml_element_and_tag(root, 'previous', None)
     return root
