@@ -9,224 +9,6 @@ from transfer.xml import get_src_submissions_xml
 from .media import rename_media_folder
 from .xml import generate_new_instance_id
 
-def find_n(xml, n, element_name):
-    """
-    finds nth occurence of tag in xml and returns the element
-    used to append data to correct repeat group 
-    """
-    occurrences = 0
-    for element in xml.iter(element_name):
-        occurrences += 1
-        if occurrences == int(n):
-            return element
-    return None
-
-"""def check_for_group(_uid, group_name):
-    parent_group = _uid
-    group_element = None
-    for group in group_name: 
-
-        group_element = _uid.find(".//" + group)
-
-        if (group_element == None):
-            group_element = ET.SubElement(parent_group, group)
-        
-        parent_group = group_element
-        group_element = None
-    
-    return _uid"""
-
-
-def create_group(group_name, cell_value, parent_group = None):
-    """
-    Creates and returns an xml element of nested groups.
-
-    :param group_name Header containing group split by ('/'). Example of xlsx header that would be split is [pets/pet/name_of_pet]
-    :param cell_value: value stored in the cell for a particular submission, under the group_name column. 
-    :param parent_group: None when the first string in group_name is the root. 
-    """
-    if parent_group is None:
-        initial = create_xml_element_and_tag(None, group_name[0], None)
-        parent_group = initial
-        print("not nested1")
-    else:
-        initial = parent_group
-        print("nested1")
-    
-    group_element = None
-    for group in group_name: 
-        if parent_group.tag == group:
-            continue
-    
-        group_element = parent_group.find(".//" + group)
-
-        if (group_element == None):
-            group_element = create_xml_element_and_tag(parent_group, group, None)
-
-        if (group == group_name[-1]) and cell_value: #last element in group_name is the question
-            group_element.text = str(cell_value)
-        
-        parent_group = group_element
-        group_element = None
-
-    return initial
-
-def new_repeat(submission_xml, workbook, submission_index):
-        """method is called when there are multiple sheets in xlsx, because it is assumed to be repeat groups"""
-        sheet_names = workbook.sheetnames 
-        original_indexes = [] #cleared every time its a new sheet. 
-        for sheet_name in sheet_names[1:]:
-            new_indexes = []
-            sheet = workbook[sheet_name]
-            headers = [cell.value for cell in sheet[1]] 
-            try:
-                index_header = headers.index("_index")
-                parent_index_header = headers.index('_parent_index')
-                parent_table_header = headers.index('_parent_table_name')
-            except Exception:
-                print(
-                    "Error: if xlsx file has multiple tabs, data in extra sheets must be in expected repeating group format"
-                )
-                raise
-
-            question_headers = [item for item in headers if not item.startswith('_')] 
-
-            #loop through the question headers and make sure that none of them start with a non-repeating group
-            #if they do start with a non-repeating group, make sure that its in the submission_uid already
-            non_repeat_groups = []
-            
-            for column in question_headers:
-                parts = column.split('/')
-                for part in parts:
-                    if part in sheet_names:
-                        break
-                    else:
-                        non_repeat_groups.append(part)
-                        break
-            
-            
-            #TODO what if its double nested? what if there are two non-repeat groups, adn then the repeat starts... 
-
-            #for each of the elements in non_repeat_groups, make sure it is in submission_uid
-            #if it is, do nothing
-            #if it is not, edit submission_uid and add the group
-            #create the element in submission_uid if it does not already exist.. 
-            for normal_group in non_repeat_groups:
-                create_group(normal_group.split('/'), None, submission_xml)
-
-
-            for row in sheet.iter_rows(min_row=2, values_only=True):
-                mini_group = None
-                #submission_uid = str(row[submission_uid_header])
-                index = str(row[index_header]) #this is the current value
-                parent_index = str(row[parent_index_header]) #this is row's parent value
-                parent_table = str(row[parent_table_header])
-                #group_to_appendto = None
-                
-                if parent_table == str(sheet_names[0]): #if the parent_table is the main sheet (the first one)
-
-                    #only look at rows with same value as this submission (passed in as parameter)
-                    if parent_index != submission_index: 
-                        continue
-                    else:
-                        #populate original_indexes with index of the rows that haave parent_group == passed in value from first sheet
-                        original_indexes.append(index) #first sheet, makes sure this is not empty.. 
-                     
-                else: #if the parent_table a different sheet (not the first one)
-                    print(original_indexes)
-                    if parent_index not in original_indexes:  #you have to see if its part of the original indexes
-                        continue
-                    else: 
-                        new_indexes.append(index)
-
-                        #TODO
-                        #so you know parent_table is repeat1
-                        #original indexes holds the index of the submissions you want to look at
-                        #so what happens when multiple repeat groups have the same parent_table
-
-            
-
-                for col_name in question_headers: 
-                    col_num = headers.index(col_name)
-                    cell_value = str(row[col_num])
-
-                    if cell_value in [None, 'None', 'none']:
-                        cell_value = ""
-
-                    group_names = col_name.split('/') 
-
-                    #now there is an array of the header
-                    #you start the repeat stuff from when repeat sheet name is mentioned!
-                    index_of_sheet_group = group_names.index(str(sheet_name)) 
-                    
-                    #when there is group within a repeat group, this is ok, since can still start the elements from the sheetname
-                    #HOWEVER, need different condition when the repeat group is nested in a group
-
-                    if mini_group is None: #this is for first column of the sheet, creates all elements in header starting from spreadsheet name
-                        #TODO so what if the second column of the sheet has a different path?? what if it has an extra group in there somewhere. 
-                        mini_group = create_group(group_names[index_of_sheet_group:], str(cell_value)) #this is from the top
-
-                    else: #following columns of the sheet (nest the elements, or append to the elements created from first column)
-                        mini_group = create_group(group_names[index_of_sheet_group:], str(cell_value), mini_group)
-
-
-                #group_names is going to be the last column of the current sheet
-                #group_names[0] would be the first parent group (the group it starts with) of the last q in the sheet
-                #i think this is done w the assumption that all in a sheet are going to start with the same group?? IDK THO
-                if question_headers != []:
-                    #print(question_headers)
-                    #if (str(sheet_name) == group_names[0]): #when initial parent repeat group (the one it starts with) is same as sheet. 
-                    #all repeat groups in single sheet have to be nested in same way
-                     #   submission_xml.append(mini_group)
-                    
-                    if parent_table == str(sheet_names[0]): #append to xml if parent_table for this sheet is the initial one. 
-    
-                        #if repeat_group is nested, must be nested within a non-repeating group
-                        #find the previous element and append to that (which is what next condition will do.
-                        #otherwise just append to overall xml. 
-                        if (index_of_sheet_group == 0):                        
-                           submission_xml.append(mini_group)
-                        else:
-                            parent_of_sheet_group = group_names[index_of_sheet_group - 1]
-                            group_to_append_to = submission_xml.find(".//" + str(parent_of_sheet_group))
-                            group_to_append_to.append(mini_group)
-
-
-                     #if its not the first sheet/first parent element
-                    else:
-
-                        #TODO this should just be an else condition
-                        #when the parent_table is something else
-            
-                        #print(sheet_name)
-
-                        #look at the parent_table.... 
-                        #that should be um value
-                        #TODO the only reason this might not work.. and you need to test
-                        #if the parent_table is different from the group right before the sheet starts
-                        #this would happen when theres a normal group right before it... so the repeat group would need to be nested within a group. and this nested group and all would need to h
-                        #have a parent_table that is another repat group 
-
-            
-                        um = question_headers[0].split('/')
-
-                            #ok so when you do um[index_of_sheet_group-1], you are assuming that the parent group is a repeating group
-
-                            #you are finding the one right before your current sheet index (like where in the header ur current sheet is found)
-                            #pass in submission to append to, the nth mention of parent to find, parent group of the element created 
-                    
-                        element = find_n(submission_xml, original_indexes.index(parent_index) + 1, um[index_of_sheet_group-1])
-                        print(original_indexes.index(parent_index) + 1)
-                        print("UM")
-                        print(um[index_of_sheet_group-1])
-
-                        element.append(mini_group)
-
-                    if row == sheet.max_row:
-                        original_indexes = new_indexes
-
-        return submission_xml
-
 def open_xlsx(excel_file_path):
     """opens xlsx, and returns workbook"""
     try:
@@ -396,19 +178,16 @@ def create_nsmap_dict(submission_data):
     }
     return nsmap_dict
 
+
 # Iterate through cells in the row and create corresponding XML elements
 def process_single_row(row, headers, added_on_headers_during_export, _uid):
     all_empty = True
     index = None
     recent_question = None
-    #edited = False
     for col_num, cell_value in enumerate(row, start=1):
         col_name = headers[col_num - 1]
         if col_name == '_index': 
             index = str(cell_value)
-       # if col_name == '$edited': 
-        #    if cell_value: 
-         #       edited = eval(str(cell_value)) #must be true or false
         if not col_name:
             continue
         geopoint = is_geopoint_header(str(recent_question), col_name)
@@ -470,7 +249,7 @@ def general_xls_to_xml(
                 "Warning: Data may include one or more blank responses where no questions were answered."
             )
         # iterate through other sheets to create repeat groups, and append to xml
-        _uid = new_repeat(_uid, workbook, index)
+        _uid = add_repeat_elements(_uid, workbook, index)
         formatted_uuid = add_version_and_meta_element(_uid, formatted_uuid, __version__)
 
         # for initial transfer (without uuids), each submission associated with index
@@ -481,13 +260,13 @@ def general_xls_to_xml(
     root =  add_prev_next(root)
     root.append(results)
     
-    test_by_writing(root)
+    #test_by_writing(root)
     workbook.close()
     return root
 
 def test_by_writing(root):
     root = ET.ElementTree(root)
-    root.write("./um.xml")
+    root.write("./submission.xml")
 
 def add_version_and_meta_element(_uid, formatted_uuid, __version__):
     """
@@ -505,3 +284,175 @@ def add_prev_next(root):
     create_xml_element_and_tag(root, 'next', None)
     create_xml_element_and_tag(root, 'previous', None)
     return root
+
+
+def find_n(xml, n, element_name):
+    """
+    finds nth occurence of tag in xml and returns the element
+    used to append data to correct repeat group 
+    """
+    occurrences = 0
+    for element in xml.iter(element_name):
+        occurrences += 1
+        if occurrences == int(n):
+            return element
+    return None
+
+def create_group(group_name, cell_value, parent_group = None):
+    """
+    Creates and returns an xml element of nested groups.
+
+    :param group_name Header containing group split by ('/'). Example of xlsx header that would be split is [pets/pet/name_of_pet]
+    :param cell_value: value stored in the cell for a particular submission, under the group_name column. 
+    :param parent_group: None when the first string in group_name is the root. 
+    """
+    if parent_group is None:
+        initial = create_xml_element_and_tag(None, group_name[0], None)
+        parent_group = initial
+    else:
+        initial = parent_group
+    
+    group_element = None
+    for group in group_name: 
+        if parent_group.tag == group:
+            continue
+    
+        group_element = parent_group.find(".//" + group)
+
+        if (group_element == None):
+            group_element = create_xml_element_and_tag(parent_group, group, None)
+        if (group == group_name[-1]) and cell_value: #last element in group_name is the question
+            group_element.text = str(cell_value)
+        
+        parent_group = group_element
+        group_element = None
+
+    return initial
+
+def get_question_headers(headers):
+    question_headers = []
+    added_on_headers_during_export = ['_id', '_submission_time', '_validation_status', '_notes',	'_status',	'__version__', '_submitted_by', '_tags', '_index', '$edited', '_parent_table_name',	'_parent_index',	'_submission__id',	'_submission__uuid', '_submission__submission_time', '_submission__validation_status',	'_submission__notes',	'_submission__status',	'_submission__submitted_by',	'_submission___version__',	'_submission__tags']
+    recent_question = None
+    for header in headers: 
+        geopoint = is_geopoint_header(str(recent_question), header)
+        if geopoint or header in added_on_headers_during_export: 
+                continue
+        recent_question = header
+        question_headers.append(header)
+    return question_headers
+                
+
+def get_sheet_info(headers):
+    try:
+        index_header = headers.index("_index")
+        parent_index_header = headers.index('_parent_index')
+        parent_table_header = headers.index('_parent_table_name')
+    except Exception:
+        print(
+            "Error: if xlsx file has multiple tabs, data in extra sheets must be in expected repeating group format"
+            )
+        raise
+    return index_header, parent_index_header, parent_table_header
+
+
+def add_groups(question_headers, sheet_names, submission_xml):
+    non_repeat_groups = []
+            
+    for column in question_headers:
+        parts = column.split('/')
+        for part in parts:
+            if part in sheet_names:
+                break
+            else:
+                non_repeat_groups.append(part)
+                break
+
+    #for each of the elements in non_repeat_groups, make sure it is in submission_uid
+    #create the element in submission_uid if it does not already exist.. 
+    for normal_group in non_repeat_groups:
+        create_group(normal_group.split('/'), None, submission_xml)
+            
+
+def add_repeat_elements(submission_xml, workbook, submission_index):
+        """method is called when there are multiple sheets in xlsx, because it is assumed to be repeat groups"""
+        sheet_names = workbook.sheetnames 
+        parent_indexes = [] #cleared every time its a new sheet. 
+        for sheet_name in sheet_names[1:]:
+            new_indexes = []
+            sheet = workbook[sheet_name]
+            headers = [cell.value for cell in sheet[1]] 
+
+            index_header, parent_index_header, parent_table_header = get_sheet_info(headers)
+            
+            question_headers = get_question_headers(headers)
+            
+            #loop through the question headers and make sure that none of them start with a non-repeating group
+            # if they do start with a non-repeating group, create group in submission_xml if doesn't already exist
+            add_groups(question_headers, sheet_names, submission_xml)
+
+            for row in sheet.iter_rows(min_row=2, values_only=True):
+                repeat_sheet_xml_element = None
+                index = str(row[index_header]) #this is the current value
+                parent_index = str(row[parent_index_header]) #this is row's parent value
+                parent_table = str(row[parent_table_header])
+
+                if parent_table == str(sheet_names[0]): #if the parent_table is the main sheet (the first one)
+                    #only look at rows with same value as this submission (passed in as parameter)
+                    if parent_index != submission_index: 
+                        continue
+                    else:
+                        #populate parent_indexes with index of the rows that haave parent_group == passed in value from first sheet
+                        parent_indexes.append(index) #first sheet, makes sure this is not empty.. 
+                     
+                else: #if the parent_table a different sheet (not the first one)
+                    if parent_index not in parent_indexes:  #you have to see if its part of the original indexes
+                        continue
+                    else: 
+                        new_indexes.append(index)
+        
+                for col_name in question_headers: 
+                    col_num = headers.index(col_name)
+                    cell_value = str(row[col_num])
+
+                    if cell_value in [None, 'None', 'none']:
+                        cell_value = ""
+
+                    group_names = col_name.split('/') 
+                    #split array of header, start creating repeat xml element from when repeat sheet name is mentioned!
+                    index_of_sheet_group = group_names.index(str(sheet_name)) 
+
+                    if repeat_sheet_xml_element is None: #this is for first column of the sheet, creates all elements in header starting from spreadsheet name 
+                        repeat_sheet_xml_element= create_group(group_names[index_of_sheet_group:], str(cell_value)) 
+
+                    else: #following columns of the sheet (nest the elements, or append to the elements created from first column)
+                        repeat_sheet_xml_element = create_group(group_names[index_of_sheet_group:], str(cell_value), repeat_sheet_xml_element)
+
+                if question_headers != []:
+                    if parent_table == str(sheet_names[0]): #append to xml if parent_table for this sheet is the initial one. 
+    
+                        #if repeat_group is nested, must be nested within a non-repeating group
+                        #find the previous element and append to that (which is what next condition will do.
+                        #otherwise just append to overall xml. 
+                        if (index_of_sheet_group == 0):                        
+                           submission_xml.append(repeat_sheet_xml_element)
+                        else:
+                            parent_of_sheet_group = group_names[index_of_sheet_group - 1]
+                            group_to_append_to = submission_xml.find(".//" + str(parent_of_sheet_group))
+                            group_to_append_to.append(repeat_sheet_xml_element)
+
+                    #if its not the first sheet/first parent element
+                    else:
+                        parent_group_of_repeat_sheet = question_headers[0].split('/')[index_of_sheet_group-1] #group preceding current sheet index in header (repeat element needs to be nested in this)
+                        #group preceding must be repeat group, or part of a repeat group
+                        #otherwise, parent_table would've been sheets[0]
+            
+                        #given submission_xml, find nth parent_group_of_repeat_sheet element
+                        element = find_n(submission_xml, parent_indexes.index(parent_index) + 1, parent_group_of_repeat_sheet)
+                        element.append(repeat_sheet_xml_element)
+
+                    if row == sheet.max_row:
+                        parent_indexes = new_indexes
+
+        return submission_xml
+
+
