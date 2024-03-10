@@ -116,42 +116,6 @@ def create_xml_element_and_tag(parent, tag, text, namespace=None):
     return new_element
 
 
-def process_data_in_columns(_uid, col_name, cell_value):
-    """
-    creates the xml for a single submission which is represented in a single row in the xlsx
-
-    :param _uid is the root element for the single submission that will be appended to as rows are parsed
-    :param col_name is the header/label of the column in xlsx
-    :param cell_value i
-
-    returns:
-    all_empty is a boolean that is true when the submission is blank and all questions have not been responded to
-    formatted_uuid is the unique uuid for the submission
-    """
-    all_empty = None
-    formatted_uuid = None
-    if cell_value in [None, "None", "none"]:
-        cell_value = ""
-    else:
-        all_empty = False
-
-    # if xlsx data is downloaded from kobo, it will contain this column
-    if col_name == "_uuid":
-        formatted_uuid = extract_uuid(cell_value)
-
-    # column headers that include / indicate {group_name}/{question}
-    elif len(col_name.split("/")) >= 2:
-        _uid = create_group(col_name.split("/"), str(cell_value), _uid)
-    else:
-        if col_name in ["end", "start"]:
-            # if cell_value:
-            cell_value = cell_value.isoformat() if cell_value else ""
-
-        create_xml_element_and_tag(_uid, col_name, str(cell_value))
-
-    return all_empty, formatted_uuid
-
-
 def is_geopoint_header(recent_question, col_name):
     """
     returns false if column header should be treated should be treated as a question and
@@ -183,26 +147,52 @@ def create_nsmap_dict(submission_data):
     return nsmap_dict
 
 
+def process_data_in_columns(_uid, col_name, cell_value):
+    """
+    creates the xml for a single submission which is represented in a single row in the xlsx
+
+    :param _uid is the root element for the single submission that will be appended to as rows are parsed
+    :param col_name is the header/label of the column in xlsx
+    :param cell_value i
+
+    returns:
+    all_empty is a boolean that is true when the submission is blank and all questions have not been responded to
+    """
+    all_empty = None
+    if cell_value in [None, "None", "none"]:
+        cell_value = ""
+    else:
+        all_empty = False
+    if (
+        "/" in col_name
+    ):  # column headers that include / indicate {group_name}/{question}
+        _uid = create_group(col_name.split("/"), str(cell_value), _uid)
+    else:
+        if col_name in ["end", "start"]:
+            cell_value = cell_value.isoformat() if cell_value else ""
+        create_xml_element_and_tag(_uid, col_name, str(cell_value))
+
+    return all_empty
+
+
 # Iterate through cells in the row and create corresponding XML elements
-def process_single_row(row, headers, added_on_headers_during_export, _uid):
+def process_single_row(row, headers, _uid):
     all_empty = True
-    index = None
-    recent_question = None
+    index = str(row[headers.index("_index")])
+    # recent_question = None
+    question_headers = get_question_headers(headers)
+    formatted_uuid = None
+    if "_uuid" in headers:
+        formatted_uuid = extract_uuid(str(row[headers.index("_uuid")]))
+
     for col_num, cell_value in enumerate(row, start=1):
         col_name = headers[col_num - 1]
-        if col_name == "_index":
-            index = str(cell_value)
-        if not col_name:
-            continue
-        geopoint = is_geopoint_header(str(recent_question), col_name)
-        if geopoint or col_name in added_on_headers_during_export:
-            continue
-        recent_question = col_name
-        all_empty, formatted_uuid = process_data_in_columns(_uid, col_name, cell_value)
-        if (
-            not all_empty
-        ):  # all_empty should only be true when all cell values are blank
-            all_empty = False
+        if col_name in question_headers:
+            all_empty = process_data_in_columns(_uid, col_name, cell_value)
+            if (
+                not all_empty
+            ):  # all_empty should only be true when all cell values are blank
+                all_empty = False
 
     return index, formatted_uuid, all_empty
 
@@ -223,27 +213,13 @@ def general_xls_to_xml(excel_file_path, submission_data, warnings=False):
     returns root of the xml that can be used to transfer to kobo project
     """
     workbook = open_xlsx(excel_file_path)
-    sheet = workbook.worksheets[
-        0
-    ]  # first sheet should have all data, if xlsx contains other sheets, they must be for repeat groups
+    # first sheet should have all data, if xlsx contains other sheets, they must be for repeat groups
+    sheet = workbook.worksheets[0]
 
     formhub_uuid, __version__ = extract_submission_data(submission_data)
     nsmap_dict = create_nsmap_dict(submission_data)
     root, results = initialize_elements()
     headers = [cell.value for cell in sheet[1]]
-    # columns automatically generated with kobo (this is after data has been downloaded from kobo)
-    added_on_headers_during_export = [
-        "_id",
-        "_submission_time",
-        "_validation_status",
-        "_notes",
-        "_status",
-        "__version__",
-        "_submitted_by",
-        "_tags",
-        "_index",
-        "$edited",
-    ]
 
     #    if warnings:
     #        kobo_xls_match_warnings(headers, submission_data)
@@ -253,16 +229,12 @@ def general_xls_to_xml(excel_file_path, submission_data, warnings=False):
         values_only=True,
     ):
         _uid = add_formhub_element(nsmap_dict, formhub_uuid)
-
-        # check if submission xml needs to be created
-        if not eval(
+        if not eval(  # currently all false or blank $edited submissions are being skipped
             str(row[headers.index("$edited")])
-        ):  # currently all false or blank $edited submissions are being skipped
+        ):
             continue
 
-        index, formatted_uuid, all_empty = process_single_row(
-            row, headers, added_on_headers_during_export, _uid
-        )
+        index, formatted_uuid, all_empty = process_single_row(row, headers, _uid)
         if all_empty:
             print(
                 "Warning: Data may include one or more blank responses where no questions were answered."
@@ -278,8 +250,7 @@ def general_xls_to_xml(excel_file_path, submission_data, warnings=False):
 
     root = add_prev_next(root)
     root.append(results)
-
-    # test_by_writing(root)
+    test_by_writing(root)
     workbook.close()
     return root
 
@@ -359,6 +330,7 @@ def get_question_headers(headers):
     question_headers = []
     added_on_headers_during_export = [
         "_id",
+        "_uuid",
         "_submission_time",
         "_validation_status",
         "_notes",
@@ -403,18 +375,19 @@ def get_sheet_info(headers):
     return index_header, parent_index_header, parent_table_header
 
 
-def add_groups(question_headers, sheet_names, submission_xml):
+def add_groups_if_missing(question_headers, sheet_names, submission_xml):
     non_repeat_groups = []
 
-    for column in question_headers:
-        parts = column.split("/")
+    for col_name in question_headers:
+        parts = col_name.split("/")
         for part in parts:
-            if part in sheet_names:
-                break
-            else:
+            if part not in sheet_names:
                 non_repeat_groups.append(part)
-                break
-
+            # if part in sheet_names:
+            #   break
+            # else:
+            #   non_repeat_groups.append(part)
+            #  break
     # for each of the elements in non_repeat_groups, make sure it is in submission_uid
     # create the element in submission_uid if it does not already exist..
     for normal_group in non_repeat_groups:
@@ -423,6 +396,7 @@ def add_groups(question_headers, sheet_names, submission_xml):
 
 def add_repeat_elements(submission_xml, workbook, submission_index):
     """method is called when there are multiple sheets in xlsx, because it is assumed to be repeat groups
+    method iterates through the xls sheets and adds each repeat group element to the xml
     limitation: sheet needs to be ordered from parent —> child; the parent_table must precede child in xls sheet order
     """
     sheet_names = workbook.sheetnames
@@ -436,9 +410,8 @@ def add_repeat_elements(submission_xml, workbook, submission_index):
 
         question_headers = get_question_headers(headers)
 
-        # loop through the question headers and make sure that none of them start with a non-repeating group
-        # if they do start with a non-repeating group, create group in submission_xml if doesn't already exist
-        add_groups(question_headers, sheet_names, submission_xml)
+        # ensure all non-repeating group headers exist in submission_xml
+        add_groups_if_missing(question_headers, sheet_names, submission_xml)
 
         for row in sheet.iter_rows(min_row=2, values_only=True):
             repeat_sheet_xml_element = None
@@ -456,7 +429,7 @@ def add_repeat_elements(submission_xml, workbook, submission_index):
                     # populate parent_indexes with index of the rows that haave parent_group == passed in value from first sheet
                     parent_indexes.append(
                         index
-                    )  # first sheet, makes sure this is not empty..
+                    )  # first sheet (parent_indexes never empty because added to here)
 
             else:  # if the parent_table a different sheet (not the first one)
                 if (
