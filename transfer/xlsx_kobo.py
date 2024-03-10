@@ -36,6 +36,7 @@ def find_n(xml, n, element_name):
     
     return _uid"""
 
+
 def create_group(group_name, cell_value, parent_group = None):
     """
     Creates and returns an xml element of nested groups.
@@ -102,25 +103,28 @@ def new_repeat(submission_xml, workbook, submission_index):
                     else:
                         non_repeat_groups.append(part)
                         break
-
             
-            for normal_group in non_repeat_groups:
-                create_group(normal_group.split('/'), None, submission_xml)
+            
+            #TODO what if its double nested? what if there are two non-repeat groups, adn then the repeat starts... 
 
             #for each of the elements in non_repeat_groups, make sure it is in submission_uid
             #if it is, do nothing
             #if it is not, edit submission_uid and add the group
             #create the element in submission_uid if it does not already exist.. 
+            for normal_group in non_repeat_groups:
+                create_group(normal_group.split('/'), None, submission_xml)
+
+
             for row in sheet.iter_rows(min_row=2, values_only=True):
                 mini_group = None
                 #submission_uid = str(row[submission_uid_header])
                 index = str(row[index_header]) #this is the current value
                 parent_index = str(row[parent_index_header]) #this is row's parent value
                 parent_table = str(row[parent_table_header])
-                group_to_appendto = None
+                #group_to_appendto = None
                 
-                #if str(sheet_name) == str(question_headers[0].split('/')[0]):  #because the string ur getting is home..., however no sheet_name called home
-                if parent_table == str(sheet_names[0]):
+                if parent_table == str(sheet_names[0]): #if the parent_table is the main sheet (the first one)
+
                     #only look at rows with same value as this submission (passed in as parameter)
                     if parent_index != submission_index: 
                         continue
@@ -128,13 +132,20 @@ def new_repeat(submission_xml, workbook, submission_index):
                         #populate original_indexes with index of the rows that haave parent_group == passed in value from first sheet
                         original_indexes.append(index) #first sheet, makes sure this is not empty.. 
                      
-                else: 
+                else: #if the parent_table a different sheet (not the first one)
                     print(original_indexes)
                     if parent_index not in original_indexes:  #you have to see if its part of the original indexes
                         continue
                     else: 
                         new_indexes.append(index)
-                
+
+                        #TODO
+                        #so you know parent_table is repeat1
+                        #original indexes holds the index of the submissions you want to look at
+                        #so what happens when multiple repeat groups have the same parent_table
+
+            
+
                 for col_name in question_headers: 
                     col_num = headers.index(col_name)
                     cell_value = str(row[col_num])
@@ -150,35 +161,70 @@ def new_repeat(submission_xml, workbook, submission_index):
                     
                     #when there is group within a repeat group, this is ok, since can still start the elements from the sheetname
                     #HOWEVER, need different condition when the repeat group is nested in a group
+
                     if mini_group is None: #this is for first column of the sheet, creates all elements in header starting from spreadsheet name
+                        #TODO so what if the second column of the sheet has a different path?? what if it has an extra group in there somewhere. 
                         mini_group = create_group(group_names[index_of_sheet_group:], str(cell_value)) #this is from the top
+
                     else: #following columns of the sheet (nest the elements, or append to the elements created from first column)
                         mini_group = create_group(group_names[index_of_sheet_group:], str(cell_value), mini_group)
 
-                    #test_by_writing(mini_group)
 
                 #group_names is going to be the last column of the current sheet
-                #group_names[0] would be the first parent group of the last q in the sheet
+                #group_names[0] would be the first parent group (the group it starts with) of the last q in the sheet
                 #i think this is done w the assumption that all in a sheet are going to start with the same group?? IDK THO
                 if question_headers != []:
-                    print(question_headers)
-                    if (str(sheet_name) == group_names[0]): #when initial parent repeat group (the one it starts with) is same as sheet. 
-                        submission_xml.append(mini_group)
-                
-                    if (str(sheet_name) != group_names[0]): #if its not the first sheet/first parent element
-                        print(sheet_name)
+                    #print(question_headers)
+                    #if (str(sheet_name) == group_names[0]): #when initial parent repeat group (the one it starts with) is same as sheet. 
+                    #all repeat groups in single sheet have to be nested in same way
+                     #   submission_xml.append(mini_group)
+                    
+                    if parent_table == str(sheet_names[0]): #append to xml if parent_table for this sheet is the initial one. 
+    
+                        #if repeat_group is nested, must be nested within a non-repeating group
+                        #find the previous element and append to that (which is what next condition will do.
+                        #otherwise just append to overall xml. 
+                        if (index_of_sheet_group == 0):                        
+                           submission_xml.append(mini_group)
+                        else:
+                            parent_of_sheet_group = group_names[index_of_sheet_group - 1]
+                            group_to_append_to = submission_xml.find(".//" + str(parent_of_sheet_group))
+                            group_to_append_to.append(mini_group)
+
+
+                     #if its not the first sheet/first parent element
+                    else:
+
+                        #TODO this should just be an else condition
+                        #when the parent_table is something else
             
-                        um = question_headers[0].split('/')                       
+                        #print(sheet_name)
+
+                        #look at the parent_table.... 
+                        #that should be um value
+                        #TODO the only reason this might not work.. and you need to test
+                        #if the parent_table is different from the group right before the sheet starts
+                        #this would happen when theres a normal group right before it... so the repeat group would need to be nested within a group. and this nested group and all would need to h
+                        #have a parent_table that is another repat group 
+
+            
+                        um = question_headers[0].split('/')
+
                             #ok so when you do um[index_of_sheet_group-1], you are assuming that the parent group is a repeating group
+
                             #you are finding the one right before your current sheet index (like where in the header ur current sheet is found)
                             #pass in submission to append to, the nth mention of parent to find, parent group of the element created 
+                    
                         element = find_n(submission_xml, original_indexes.index(parent_index) + 1, um[index_of_sheet_group-1])
+                        print(original_indexes.index(parent_index) + 1)
+                        print("UM")
+                        print(um[index_of_sheet_group-1])
+
                         element.append(mini_group)
 
                     if row == sheet.max_row:
                         original_indexes = new_indexes
 
-       # test_by_writing(submission_xml)
         return submission_xml
 
 def open_xlsx(excel_file_path):
