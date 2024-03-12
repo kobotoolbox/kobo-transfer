@@ -81,18 +81,21 @@ def submit_data(xml_sub, _uuid, original_uuid, xml_value_media_map):
     return res.status_code
 
 
-def update_element_value(e, name, value):
+def update_element_value(e, path, value):
     """
-    Get or create a node and give it a value, even if nested within a group
+    Get or create a node and give it a value, even if nested within a group.
     """
-    el = e.find(name)
-    if el is None:
-        if '/' in name:
-            root, node = name.split('/')
-            el = ET.SubElement(e.find(root), node)
-        else:
-            el = ET.SubElement(e, name)
-    el.text = value
+    parts = path.split('/')
+    if len(parts) == 1:
+        el = e.find(parts[0])
+        if el is None:
+            el = ET.SubElement(e, parts[0])
+        el.text = value
+    else:
+        parent = e.find(parts[0])
+        if parent is None:
+            parent = ET.SubElement(e, parts[0])
+        update_element_value(parent, '/'.join(parts[1:]), value)
 
 
 def update_root_element_tag_and_attrib(e, tag, attrib):
@@ -116,13 +119,20 @@ def generate_new_instance_id() -> (str, str):
 def transfer_submissions(all_submissions_xml, asset_data, quiet, regenerate):
     results = []
     for submission_xml in all_submissions_xml:
-        # Use the same UUID so that duplicates are rejected
-        original_uuid = submission_xml.find('meta/instanceID').text.replace(
-            'uuid:', ''
-        )
-        if regenerate:
+        # Use the same UUID so that duplicates are rejected. Handle the case when
+        # `meta/instanceID` is not present (small edge case)
+        messages = []
+        try:
+            original_uuid = submission_xml.find('meta/instanceID').text.replace(
+                'uuid:', ''
+            )
+        except AttributeError:
+            original_uuid = ''
+            messages.append('`instanceID` was missing in submission XML')
+
+        if regenerate or not original_uuid:
             _uuid, formatted_uuid = generate_new_instance_id()
-            submission_xml.find('meta/instanceID').text = formatted_uuid
+            update_element_value(submission_xml, 'meta/instanceID', formatted_uuid)
         else:
             _uuid = original_uuid
 
@@ -150,14 +160,14 @@ def transfer_submissions(all_submissions_xml, asset_data, quiet, regenerate):
             xml_value_media_map,
         )
         if result == 201:
-            msg = f'✅ {_uuid}'
+            messages.append(f'✅ {_uuid}')
         elif result == 202:
-            msg = f'⚠️  {_uuid}'
+            messages.append(f'⚠️  {_uuid}')
         else:
-            msg = f'❌ {_uuid}'
+            messages.append(f'❌ {_uuid}')
             log_failure(_uuid)
         if not quiet:
-            print(msg)
+            print(' | '.join(reversed(messages)))
         results.append(result)
     return results
 
