@@ -58,6 +58,7 @@ pip install openpyxl pandas requests xmltodict python-dateutil
 <br>
 - for repeat groups, _parent_table needs to match name of sheet exactly
 - for repeat groups, the parent_table sheet needs to precede the repeat group sheet
+- first sheet should contain one submission per row, other sheets following it can be in repeat group format
 - exported kobo form should not include media URL column. Otherwise it will be treated as a question and response when imported.
 - for select_one and select_multiple question types, data msut be formatted to be a single column. 
 - script only supports exported xlsx data where groups are seperated by '/'
