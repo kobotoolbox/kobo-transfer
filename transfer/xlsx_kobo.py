@@ -37,10 +37,10 @@ def add_formhub_element(nsmap_dict, formhub_uuid):
 
     :param nsmap_dict: dictionary containing uid and version
     """
-    uid = nsmap_dict["id"]
+    uid = nsmap_dict['id']
     _uid = create_xml_element_and_tag(None, uid, None, nsmap_dict)
-    fhub_element = create_xml_element_and_tag(_uid, "formhub", None)
-    create_xml_element_and_tag(fhub_element, "uuid", str(formhub_uuid))
+    fhub_element = create_xml_element_and_tag(_uid, 'formhub', None)
+    create_xml_element_and_tag(fhub_element, 'uuid', str(formhub_uuid))
     return _uid
 
 
@@ -61,8 +61,8 @@ def add_meta_element(_uid, formatted_uuid):
 
     # if its #edited, you will create a new one, and move the old one to the deprecated
     # if there is no uuid or uuid is blank, this means it's an initial submission. you will not create the deprecated element. just create a new uuid.
-    meta = create_xml_element_and_tag(None, "meta", None)
-    instanceId = create_xml_element_and_tag(meta, "instanceID", None)
+    meta = create_xml_element_and_tag(None, 'meta', None)
+    instanceId = create_xml_element_and_tag(meta, 'instanceID', None)
 
     if (
         formatted_uuid is None
@@ -70,7 +70,7 @@ def add_meta_element(_uid, formatted_uuid):
         formatted_uuid = generate_new_instance_id()[0]
         instanceId.text = formatted_uuid
     else:
-        create_xml_element_and_tag(meta, "deprecatedID", str(formatted_uuid))
+        create_xml_element_and_tag(meta, 'deprecatedID', str(formatted_uuid))
         instanceId.text = str(generate_new_instance_id()[1])
         formatted_uuid = instanceId.text
 
@@ -85,17 +85,14 @@ def extract_uuid(cell_value):
     othrerwise, it extracts uuid from cell and returns it
     """
     formatted_uuid = None
-    #   if not cell_value:  # if there is no uuid specified, new one will be generated
-    #      formatted_uuid = generate_new_instance_id()[0]
-    # else:
     if cell_value:
-        formatted_uuid = "uuid:" + str(cell_value)  # TODO CHANGED HERE
+        formatted_uuid = 'uuid:' + str(cell_value)
     return formatted_uuid
 
 
 def create_xml_element_and_tag(parent, tag, text, namespace=None):
     if tag is None:
-        raise Exception("Somethign went wrong.")
+        raise Exception('Something went wrong.')
 
     if parent is None and text is None:
         if namespace is None:
@@ -123,14 +120,14 @@ def is_geopoint_header(recent_question, col_name):
     used to filter out headers that follow pattern of _<question_name>_latitude etc.
     """
     geopoint_patterns = (
-        r"_" + re.escape(recent_question) + r"_(latitude|longitude|altitude|precision)"
+        r'_' + re.escape(recent_question) + r'_(latitude|longitude|altitude|precision)'
     )
     return re.match(geopoint_patterns, col_name) is not None
 
 
 def extract_submission_data(submission_data):
-    formhub_uuid = submission_data["formhub_uuid"]
-    __version__ = submission_data["__version__"]
+    formhub_uuid = submission_data['formhub_uuid']
+    __version__ = submission_data['__version__']
     return formhub_uuid, __version__
 
 
@@ -138,11 +135,11 @@ def create_nsmap_dict(submission_data):
     """extracts version and asset uid from submission_data to create
     dictionary containing them. this dictionary (nsmap_dict) will be used to create the first parent xml element
     for a single submission"""
-    v = submission_data["version"]
-    uid = submission_data["asset_uid"]
+    v = submission_data['version']
+    uid = submission_data['asset_uid']
     nsmap_dict = {
-        "id": str(uid),
-        "version": str(v),
+        'id': str(uid),
+        'version': str(v),
     }
     return nsmap_dict
 
@@ -159,17 +156,17 @@ def process_data_in_columns(_uid, col_name, cell_value):
     all_empty is a boolean that is true when the submission is blank and all questions have not been responded to
     """
     all_empty = None
-    if cell_value in [None, "None", "none"]:
+    if cell_value in [None, 'None', 'none']:
         cell_value = ""
     else:
         all_empty = False
     if (
         "/" in col_name
     ):  # column headers that include / indicate {group_name}/{question}
-        _uid = create_group(col_name.split("/"), str(cell_value), _uid)
+        _uid = create_group(col_name.split('/'), str(cell_value), _uid)
     else:
-        if col_name in ["end", "start"]:
-            cell_value = cell_value.isoformat() if cell_value else ""
+        if col_name in ['end', 'start']:
+            cell_value = cell_value.isoformat() if cell_value else ''
         create_xml_element_and_tag(_uid, col_name, str(cell_value))
 
     return all_empty
@@ -178,12 +175,12 @@ def process_data_in_columns(_uid, col_name, cell_value):
 # Iterate through cells in the row and create corresponding XML elements
 def process_single_row(row, headers, _uid):
     all_empty = True
-    index = str(row[headers.index("_index")])
+    index = str(row[headers.index('_index')])
     # recent_question = None
     question_headers = get_question_headers(headers)
     formatted_uuid = None
-    if "_uuid" in headers:
-        formatted_uuid = extract_uuid(str(row[headers.index("_uuid")]))
+    if '_uuid' in headers:
+        formatted_uuid = extract_uuid(str(row[headers.index('_uuid')]))
 
     for col_num, cell_value in enumerate(row, start=1):
         col_name = headers[col_num - 1]
@@ -202,8 +199,8 @@ def initialize_elements():
     creates and returns initial parent xml elements for data.
     root and results will be appended to as xlsx is parsed.
     """
-    root = create_xml_element_and_tag(None, "root", None)
-    results = create_xml_element_and_tag(None, "results", None)
+    root = create_xml_element_and_tag(None, 'root', None)
+    results = create_xml_element_and_tag(None, 'results', None)
     return root, results
 
 
@@ -230,14 +227,14 @@ def general_xls_to_xml(excel_file_path, submission_data, warnings=False):
     ):
         _uid = add_formhub_element(nsmap_dict, formhub_uuid)
         if not eval(  # currently all false or blank $edited submissions are being skipped
-            str(row[headers.index("$edited")])
+            str(row[headers.index('$edited')])
         ):
             continue
 
         index, formatted_uuid, all_empty = process_single_row(row, headers, _uid)
         if all_empty:
             print(
-                "Warning: Data may include one or more blank responses where no questions were answered."
+                'Warning: Data may include one or more blank responses where no questions were answered.'
             )
         # iterate through other sheets to create repeat groups, and append to xml
         _uid = add_repeat_elements(_uid, workbook, index)
@@ -257,14 +254,14 @@ def general_xls_to_xml(excel_file_path, submission_data, warnings=False):
 
 def test_by_writing(root):
     root = ET.ElementTree(root)
-    root.write("./submission.xml")
+    root.write('./submission.xml')
 
 
 def add_version_and_meta_element(_uid, formatted_uuid, __version__):
     """
     creates xml elements at the end of submission stating version number and meta data
     """
-    version_element = create_xml_element_and_tag(None, "__version__", __version__)
+    version_element = create_xml_element_and_tag(None, '__version__', __version__)
     _uid.append(version_element)
     formatted_uuid = add_meta_element(_uid, formatted_uuid)
     return formatted_uuid
@@ -274,8 +271,8 @@ def add_prev_next(root):
     """
     creates xml elements that appear prior to the results data (count, next, previous) and appends it
     """
-    create_xml_element_and_tag(root, "next", None)
-    create_xml_element_and_tag(root, "previous", None)
+    create_xml_element_and_tag(root, 'next', None)
+    create_xml_element_and_tag(root, 'previous', None)
     return root
 
 
@@ -311,7 +308,7 @@ def create_group(group_name, cell_value, parent_group=None):
         if parent_group.tag == group:
             continue
 
-        group_element = parent_group.find(".//" + group)
+        group_element = parent_group.find('.//' + group)
 
         if group_element == None:
             group_element = create_xml_element_and_tag(parent_group, group, None)
@@ -329,28 +326,28 @@ def create_group(group_name, cell_value, parent_group=None):
 def get_question_headers(headers):
     question_headers = []
     added_on_headers_during_export = [
-        "_id",
-        "_uuid",
-        "_submission_time",
-        "_validation_status",
-        "_notes",
-        "_status",
-        "__version__",
-        "_submitted_by",
-        "_tags",
-        "_index",
-        "$edited",
-        "_parent_table_name",
-        "_parent_index",
-        "_submission__id",
-        "_submission__uuid",
-        "_submission__submission_time",
-        "_submission__validation_status",
-        "_submission__notes",
-        "_submission__status",
-        "_submission__submitted_by",
-        "_submission___version__",
-        "_submission__tags",
+        '_id',
+        '_uuid',
+        '_submission_time',
+        '_validation_status',
+        '_notes',
+        '_status',
+        '__version__',
+        '_submitted_by',
+        '_tags',
+        '_index',
+        '$edited',
+        '_parent_table_name',
+        '_parent_index',
+        '_submission__id',
+        '_submission__uuid',
+        '_submission__submission_time',
+        '_submission__validation_status',
+        '_submission__notes',
+        '_submission__status',
+        '_submission__submitted_by',
+        '_submission___version__',
+        '_submission__tags',
     ]
     recent_question = None
     for header in headers:
@@ -364,34 +361,37 @@ def get_question_headers(headers):
 
 def get_sheet_info(headers):
     try:
-        index_header = headers.index("_index")
-        parent_index_header = headers.index("_parent_index")
-        parent_table_header = headers.index("_parent_table_name")
+        index_header = headers.index('_index')
+        parent_index_header = headers.index('_parent_index')
+        parent_table_header = headers.index('_parent_table_name')
     except Exception:
         print(
-            "Error: if xlsx file has multiple tabs, data in extra sheets must be in expected repeating group format"
+            'Error: if xlsx file has multiple tabs, data in extra sheets must be in expected repeating group format'
         )
         raise
     return index_header, parent_index_header, parent_table_header
 
 
 def add_groups_if_missing(question_headers, sheet_names, submission_xml):
+    #TODO does this add more then one group (what if its more than just home... in josh exmaple)
+    #TODO OK THIS BREAKS IN JOSHPT2 EXAMPLE
     non_repeat_groups = []
 
     for col_name in question_headers:
-        parts = col_name.split("/")
+        parts = col_name.split('/')
         for part in parts:
-            if part not in sheet_names:
-                non_repeat_groups.append(part)
-            # if part in sheet_names:
-            #   break
-            # else:
-            #   non_repeat_groups.append(part)
-            #  break
+        #    if part not in sheet_names:
+         #       non_repeat_groups.append(part)
+             if part in sheet_names:
+               break
+             else:
+               non_repeat_groups.append(part)
+               break
     # for each of the elements in non_repeat_groups, make sure it is in submission_uid
     # create the element in submission_uid if it does not already exist..
+    
     for normal_group in non_repeat_groups:
-        create_group(normal_group.split("/"), None, submission_xml)
+        create_group(normal_group.split('/'), None, submission_xml)
 
 
 def add_repeat_elements(submission_xml, workbook, submission_index):
@@ -407,11 +407,9 @@ def add_repeat_elements(submission_xml, workbook, submission_index):
         headers = [cell.value for cell in sheet[1]]
 
         index_header, parent_index_header, parent_table_header = get_sheet_info(headers)
-
         question_headers = get_question_headers(headers)
-
-        # ensure all non-repeating group headers exist in submission_xml
-        add_groups_if_missing(question_headers, sheet_names, submission_xml)
+       
+        add_groups_if_missing(question_headers, sheet_names, submission_xml)  # ensure all non-repeating group headers exist in submission_xml
 
         for row in sheet.iter_rows(min_row=2, values_only=True):
             repeat_sheet_xml_element = None
@@ -443,10 +441,10 @@ def add_repeat_elements(submission_xml, workbook, submission_index):
                 col_num = headers.index(col_name)
                 cell_value = str(row[col_num])
 
-                if cell_value in [None, "None", "none"]:
-                    cell_value = ""
+                if cell_value in [None, 'None', 'none']:
+                    cell_value = ''
 
-                group_names = col_name.split("/")
+                group_names = col_name.split('/')
                 # split array of header, start creating repeat xml element from when repeat sheet name is mentioned!
                 index_of_sheet_group = group_names.index(str(sheet_name))
 
@@ -477,13 +475,13 @@ def add_repeat_elements(submission_xml, workbook, submission_index):
                     else:
                         parent_of_sheet_group = group_names[index_of_sheet_group - 1]
                         group_to_append_to = submission_xml.find(
-                            ".//" + str(parent_of_sheet_group)
+                            './/' + str(parent_of_sheet_group)
                         )
                         group_to_append_to.append(repeat_sheet_xml_element)
 
                 # if its not the first sheet/first parent element
                 else:
-                    parent_group_of_repeat_sheet = question_headers[0].split("/")[
+                    parent_group_of_repeat_sheet = question_headers[0].split('/')[
                         index_of_sheet_group - 1
                     ]  # group preceding current sheet index in header (repeat element needs to be nested in this)
                     # group preceding must be repeat group, or part of a repeat group
