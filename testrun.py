@@ -1,19 +1,23 @@
+#!/usr/bin/env python3
+
 import argparse
 import json
 import sys
 
 from helpers.config import Config
 from transfer.media import get_media, del_media
-from transfer.xlsx_kobo import general_xls_to_xml
 from transfer.xml import (
     get_src_submissions_xml,
     get_submission_edit_data,
     print_stats,
     transfer_submissions,
 )
+from transfer.new import t_general_xls_to_xml
+
 
 def main(
     warnings,
+    gtransfer,
     xtransfer,
     excel_file,
     limit,
@@ -28,7 +32,7 @@ def main(
     config = Config(config_file=config_file, validate=validate)
     config_src = config.src
 
-    if not xtransfer:
+    if not gtransfer and not xtransfer:
         print('📸 Getting all submission media', end=' ', flush=True)
         get_media()
 
@@ -44,14 +48,14 @@ def main(
     print('📨 Transferring submission data')
 
     def transfer(all_results, url=None):
-        if (xtransfer):
-            parsed_xml = general_xls_to_xml(excel_file, submission_edit_data, warnings)
+        if (xtransfer or gtransfer):
+            parsed_xml = t_general_xls_to_xml(excel_file, submission_edit_data, warnings)
         else:
             parsed_xml = get_src_submissions_xml(xml_url=url)
 
         submissions = parsed_xml.findall(f'results/{config_src["asset_uid"]}')
         next_ = parsed_xml.find('next').text
-       
+        """
         results = transfer_submissions(
             submissions,
             submission_edit_data,
@@ -59,13 +63,13 @@ def main(
             regenerate=regenerate,
         )
         all_results += results
-   
+        """
         if next_ != 'None' and next_ is not None:
             transfer(all_results, next_)
         
     transfer(all_results, xml_url_src)
     
-    if not xtransfer:
+    if not xtransfer and not gtransfer:
         if not keep_media:
             del_media()
 
@@ -162,6 +166,7 @@ if __name__ == '__main__':
     try:
         main(
             warnings = args.print_warnings,
+            gtransfer= args.google_transfer,
             xtransfer = args.excel_transfer,
             excel_file=args.excel_file,
             limit=args.limit,
@@ -177,5 +182,3 @@ if __name__ == '__main__':
         print('🛑 Stopping run')
         # Do something here so we can pick up again where this leaves off
         sys.exit()
-
-

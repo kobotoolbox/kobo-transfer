@@ -1,337 +1,509 @@
+import re
 import string
-from datetime import datetime
-from xml.etree import ElementTree as ET
+
 import openpyxl
-import xml.etree.ElementTree as ET
+from xml.etree import ElementTree as ET
+
 from .media import rename_media_folder
-import pandas as pd
-from datetime import datetime
-from dateutil import parser
 from .xml import generate_new_instance_id
-import requests
-from helpers.config import Config
-from transfer.xml import (
-    get_src_submissions_xml,
-)
-
-def format_timestamp(google_timestamp):
-    dt = parser.parse(google_timestamp)
-    kobo_format = "%Y-%m-%dT%H:%M:%S.%f"
-    #[-3] since kobo stores to miliseconds .000
-    return dt.strftime(kobo_format)[:-3]
-
-def format_google_date(google_date):
-    date = None
-    try: 
-        date = datetime.strptime(google_date, "%Y-%m-%d %H:%M:%S")
-    except ValueError:
-        return google_date
-    if (date != None):
-        return date.strftime("%Y-%m-%d")
-    else: 
-        return google_date
-
-def format_google_time(google_time):
-    is_time = None
-    try: 
-        is_time = datetime.strptime(google_time, '%H:%M:%S')
-    except ValueError:
-        return google_time
-    if (is_time!= None):
-        return is_time.strftime("%H:%M:%S.%f")[:-3]
-    else: 
-        return google_time
-
-def group_element(_uid, group, cell_value):
-    """creates logical groups in xml for kobo"""
-    group_name = group.split("/")
-    element = _uid.find('.//' + group_name[0])
-    if (element == None):
-        element = ET.SubElement(_uid, group_name[0])
-
-    if (group_name[0] != group_name[1]):
-        group_element = ET.SubElement(element, group_name[1])
-        group_element.text = str(cell_value)
-        
-    return _uid
-
-def kobo_xls_match_warnings(xls_questions, submission_data):
-    config_src = Config().src
-    xml_url = config_src['xml_url'] + f'?limit={30000}'
-    kobo_form_xml = get_src_submissions_xml(xml_url)
-    uid = submission_data["asset_uid"]
-    uid_element = kobo_form_xml.find(f".//{uid}")
-
-    kobo_form_questions = []
-    lowercase_no_punctuation_koboq = []
-    
-    for subelement in uid_element:
-        kobo_form_questions.append(subelement.tag)
-        lower_no_punct_k = subelement.tag.lower()
-        lower_no_punct_k = ''.join(char for char in lower_no_punct_k if char not in string.punctuation)
-        lower_no_punct_k = lower_no_punct_k.replace(" ", "")
-        lowercase_no_punctuation_koboq.append(lower_no_punct_k)
-
-    xls_questions = [element for element in xls_questions if not element.startswith('_')]
-    lowercase_no_punctuation_xlsq = []
-    for question in xls_questions: 
-        lower_no_punct_q = question.lower()
-        lower_no_punct_q = ''.join(char for char in lower_no_punct_q if char not in string.punctuation)
-        lower_no_punct_q = lower_no_punct_q.replace(" ", "")
-        lowercase_no_punctuation_xlsq.append(lower_no_punct_q.lower())
-
-    elements_to_remove = ['formhub', '__version__', 'version', 'meta', 'start', 'end', 'Timestamp']
-    for element in elements_to_remove:
-        if element in kobo_form_questions: 
-            kobo_form_questions.remove(element)
-        if element in lowercase_no_punctuation_koboq:
-            lowercase_no_punctuation_koboq.remove(element)
-        if element in xls_questions:
-            xls_questions.remove(element)
-        if element in lowercase_no_punctuation_xlsq:
-            lowercase_no_punctuation_xlsq.remove(element)
-
-    #check if number of questions in kobo form, and number of questions in xls match
-    if len(kobo_form_questions) != len(xls_questions):
-        print("Warning: number of questions in kobo form might not match number of questions in xls")
-    elif kobo_form_questions != xls_questions:
-        #if standardised is same, but original is different
-        if (lowercase_no_punctuation_koboq != lowercase_no_punctuation_xlsq):
-            print("Warning: Question labels in kobo and XLS form have slight differences. Check if capitalisation, punctuation, and spacing are consistent.")
-        else:
-            #same number of questions but different labels
-            print("Warning: question labels in kobo form do not match xls labels exactly")
 
 
-def repeat_groups(submission_xml, uuid, workbook): 
-    """method is called when there are multiple sheets in xlsx, because it is assumed to be repeat groups"""
-    uuid = uuid[len("uuid:"):]
-    sheet_names = workbook.sheetnames
-    sheet_names = sheet_names[1:]
-    for sheet_name in sheet_names:
-        sheet = workbook[sheet_name]
-        headers = [cell.value for cell in sheet[1]]
-        try:
-            submission_uid_header = headers.index("_submission__uuid")
-        except Exception:
-            print("Error: if xlsx file has multiple tabs, data in extra sheets must be in expected repeating group format")
-            raise
-        for row in sheet.iter_rows(min_row=2, values_only=True):
-            submission_uid = str(row[submission_uid_header])
-            if (submission_uid == uuid):
-                    element = ET.SubElement(submission_xml, sheet_name)
-            for col_num, cell_value in enumerate(row, start=1):
-                col_name = str(headers[col_num-1])
-                group_arr = col_name.split('/')
-            
-                if cell_value is None or cell_value == "none" or cell_value == "None":  
-                    cell_value = ""
-                
-                if len(group_arr) == 2 and sheet_name in col_name:
-                    if (submission_uid == uuid): 
-                        group_element = ET.SubElement(element, group_arr[1])
-                        group_element.text = str(cell_value)
-        return submission_xml 
-
-
-
-def initial_repeat(_uid, col_arr, cell_value):
-    """When xlsx data doesn't have a uuid (initial transfer to kobo), repeating group responses created with this method.
-    All questions in repeat group should have an equal number of responses, even if a response is blank. If question 1 in repeating group responses are {a, b, c},
-    question 2 responses need to have same number so indices match {1,,3}
-    expected label to indicate repeat group: repeat/{group_name}/{question}
-    """
-    #repeat/group_name/question
-    group_name = col_arr[1]
-    responses = cell_value.split(',')
-    elements = _uid.findall('.//' + group_name)
-    if not elements: 
-        #when initial group doesn't exist, create element with group name, and subelement with question label and response
-        for response in responses:
-            element = ET.SubElement(_uid, group_name)
-            subelement = ET.SubElement(element, col_arr[2])
-            subelement.text = response
-    else: 
-        if (len(elements) != len(responses)): 
-            raise Exception("Repeat group transfer failed. They should be saved in order with commas seperating each repeat response. No response should have a comma within it.")
-        for group_el, response in zip(elements, responses):
-            subelement = ET.SubElement(group_el, col_arr[2])
-            subelement.text = response
-
-    return _uid
-
-
-def open_xlsx(excel_file_path): 
-    """opens xlsx, and formats all data into xml format compatible with kobo"""
-    try: 
+def open_xlsx(excel_file_path):
+    """opens xlsx, and returns workbook"""
+    try:
         workbook = openpyxl.load_workbook(excel_file_path, read_only=True)
     except FileNotFoundError as e:
         print(f"⚠️ Error: Excel file not found at path '{excel_file_path}'.")
-        raise(e)
+        raise (e)
     except openpyxl.utils.exceptions.InvalidFileException:
-            print(f"⚠️ Error: Invalid file format for '{excel_file_path}'")
-            raise(e)
-    except TypeError as e: 
+        print(f"⚠️ Error: Invalid file format for '{excel_file_path}'")
+        raise (e)
+    except TypeError as e:
         if "NoneType" in str(e):
             print(f"⚠️ Error: File path is None. Specify xls file path with flag -ef")
-            raise(e)
+            raise (e)
     except Exception as e:
         print(f"⚠️ Something went wrong when reading xlsx file: {e}")
-        raise(e)
+        raise (e)
     return workbook
 
-def formhub_element(uid, NSMAP, formhubuuid):
-        """creates formhub element with nested uuid"""
-        _uid = ET.Element(uid, NSMAP)
-        fhub_el = ET.SubElement(_uid, "formhub") 
-        uuid_el = ET.SubElement(fhub_el, "uuid") 
-        uuid_el.text = formhubuuid
-        return _uid
 
-def format_xml_from_google(cell_value):
-    #multiple select question responses from google forms are sepearated by ',' 
-    #to show up in kobo, responses must be lowercase, spaces must be replaced with '_' and seperated by ' '
-    if ',' in cell_value:
-        options_selected = cell_value.split(',')
-        for i in range(len(options_selected)):
-            options_selected[i] = options_selected[i].strip().lower()
-            options_selected[i] = options_selected[i].replace(' ', '_')
-        cell_value = ' '.join(options_selected)
+def create_xml_element_and_tag(parent, tag, text, namespace=None):
+    if tag is None:
+        raise Exception("Something went wrong.")
 
-    #formatting date and time to be compatible with kobo are specific to how google forms saves data
-    cell_value = format_google_time((cell_value))
-    cell_value = format_google_date(cell_value)
-    return cell_value
+    if parent is None and text is None:
+        if namespace is None:
+            new_element = ET.Element(tag)
+        else:
+            new_element = ET.Element(
+                tag, namespace
+            )  # condition only entered for the nsmap dict
+    elif parent is None:
+        new_element = ET.Element(tag)
+        new_element.text = text
+    elif text is None:
+        new_element = ET.SubElement(parent, tag)
+    else:
+        new_element = ET.SubElement(parent, tag)
+        new_element.text = text
 
-def meta_element(_uid, formatted_uuid):
-    """meta tag 
-          <meta>
-                <instanceID>uuid:a0ea37ef-ac71-434b-93b6-1713ef4c367f</instanceID>
-                <deprecatedID>
-            </meta>
-    }"""
-    meta = ET.Element("meta")
-    if (formatted_uuid == "uuid:"):
-        formatted_uuid = generate_new_instance_id()[1]
-    instanceId = ET.SubElement(meta, "instanceID") 
-    deprecatedId = ET.SubElement(meta, "deprecatedID")
-    instanceId.text = formatted_uuid
-    deprecatedId.text = formatted_uuid
-    _uid.append(meta)
+    return new_element
+
+
+def add_formhub_element(nsmap_dict, formhub_uuid):
+    """
+    creates and returns initial element for the submission )example of the format is <aDVansdqUpnpUhGxy8 id="aDVansdqUpnpUhGxy8" version="3 (2022-03-08 10:33:24)">)
+    and the formhub element nested within it.
+
+    :param nsmap_dict: dictionary containing uid and version
+    """
+    uid = nsmap_dict["id"]
+    submission_xml = create_xml_element_and_tag(None, uid, None, nsmap_dict)
+    fhub_element = create_xml_element_and_tag(submission_xml, "formhub", None)
+    create_xml_element_and_tag(fhub_element, "uuid", str(formhub_uuid))
+    return submission_xml
+
+
+def add_meta_element(submission_xml, formatted_uuid):
+    """creates element in xml with meta tag. meta contains instanceId and deprecatedId elements and appears at end of each submission.
+    once meta element is created, it is appended to the xml of whole submission, and then returned.
+    method is only called when $edited value is true for the submission
+
+    :param subnmission_xml is the xml representing a single submission. it is built upon and starts with the inital nsmaplement
+    :param formatted_uuid is unique instance id of the submission
+    """
+
+    # if its #edited, create a new uuid, and  move the old one to the deprecatedID
+    # if there is no uuid or uuid is blank, this means it's an initial submission. no deprecated element created, only new uuid (instanceID)
+    meta = create_xml_element_and_tag(None, "meta", None)
+    instanceId = create_xml_element_and_tag(meta, "instanceID", None)
+
+    if (
+        formatted_uuid is None
+    ):  # uuid will be generated here when xlsx doesn't contain header _uuid
+        formatted_uuid = generate_new_instance_id()[0]
+        instanceId.text = formatted_uuid
+    else:
+        create_xml_element_and_tag(meta, "deprecatedID", str(formatted_uuid))
+        instanceId.text = str(generate_new_instance_id()[1])
+        formatted_uuid = instanceId.text
+
+    submission_xml.append(meta)
+
     return formatted_uuid
 
 
-def single_submission_xml( gtransfer, _uid, col_name, cell_value, all_empty, formatted_uuid):
-    if (gtransfer):
-        cell_value = format_xml_from_google(str(cell_value))
+def initialize_elements():
+    """
+    creates and returns initial parent xml elements for data.
+    root and results will be appended to as xlsx is parsed.
+    """
+    root = create_xml_element_and_tag(None, "root", None)
+    results = create_xml_element_and_tag(None, "results", None)
+    return root, results
 
-    if cell_value is None or cell_value == "none" or cell_value == "None":  
-       cell_value = ""
+
+def get_question_headers(headers):
+    """filters the column labels/headers, and returns only the ones that contain questions"""
+    question_headers = []
+    added_on_headers_during_export = [
+        "_id",
+        "_uuid",
+        "_submission_time",
+        "_validation_status",
+        "_notes",
+        "_status",
+        "__version__",
+        "_submitted_by",
+        "_tags",
+        "_index",
+        "$edited",
+        "_parent_table_name",
+        "_parent_index",
+        "_submission__id",
+        "_submission__uuid",
+        "_submission__submission_time",
+        "_submission__validation_status",
+        "_submission__notes",
+        "_submission__status",
+        "_submission__submitted_by",
+        "_submission___version__",
+        "_submission__tags",
+    ]
+    recent_question = None
+    for header in headers:
+        geopoint = is_geopoint_header(str(recent_question), header)
+        if geopoint or header in added_on_headers_during_export:
+            continue
+        recent_question = header
+        question_headers.append(header)
+    return question_headers
+
+
+def is_geopoint_header(recent_question, col_name):
+    """
+    returns false if column header should be treated should be treated as a question and
+    returns true if column header should be ignored since it is part of geopoint/geoline type
+    used to filter out headers that follow pattern of _<question_name>_latitude etc.
+    """
+    geopoint_patterns = (
+        r"_" + re.escape(recent_question) + r"_(latitude|longitude|altitude|precision)"
+    )
+    return re.match(geopoint_patterns, col_name) is not None
+
+
+def create_group(group_names_arr, cell_value, parent_group=None):
+    """
+    Creates and returns an xml element of nested groups.
+
+    :param group_name Header containing group split by ('/'). Example of xlsx header that would be split is [pets/pet/name_of_pet]
+    :param cell_value: value stored in the cell for a particular submission, under the group_name column.
+    :param parent_group: None when the first string in group_name is the root.
+    """
+    if parent_group is None:
+        initial = create_xml_element_and_tag(None, group_names_arr[0], None)
+        parent_group = initial
+    else:
+        initial = parent_group
+
+    group_element = None
+    for group in group_names_arr:
+        if parent_group.tag == group:
+            continue
+        group_element = parent_group.find(".//" + group)
+
+        if group_element == None:
+            group_element = create_xml_element_and_tag(parent_group, group, None)
+        if (
+            group == group_names_arr[-1]
+        ) and cell_value:  # last element in group_name is the question
+            group_element.text = str(cell_value)
+
+        parent_group = group_element
+        group_element = None
+
+    return initial
+
+
+def extract_uuid(cell_value):
+    """
+    if uuid is not present in xlsx, it generates a uuid for the submission
+    othrerwise, it extracts uuid from cell and returns it
+    """
+    formatted_uuid = None
+    if cell_value:
+        formatted_uuid = "uuid:" + str(cell_value)
+    return formatted_uuid
+
+
+def extract_submission_data(submission_data):
+    formhub_uuid = submission_data["formhub_uuid"]
+    __version__ = submission_data["__version__"]
+    return formhub_uuid, __version__
+
+
+def create_nsmap_dict(submission_data):
+    """extracts version and asset uid from submission_data to create
+    dictionary containing them. this dictionary (nsmap_dict) will be used to create the first parent xml element
+    for a single submission"""
+    v = submission_data["version"]
+    uid = submission_data["asset_uid"]
+    nsmap_dict = {
+        "id": str(uid),
+        "version": str(v),
+    }
+    return nsmap_dict
+
+
+def process_data_in_columns(submission_xml, col_name, cell_value):
+    """
+    creates the xml for a single submission which is represented in a single row in the xlsx
+
+    :param submission_xml is the root element for the single submission that will be appended to as rows are parsed
+    :param col_name is the header/label of the column in xlsx
+    :param cell_value is the cell value in xls for current row/submission, in col_name
+
+    returns:
+    all_empty is a boolean that is true when the submission is blank and all questions have not been responded to
+    """
+    all_empty = None
+    if cell_value in [None, "None", "none"]:
+        cell_value = ""
     else:
         all_empty = False
-        
-    #if xlsx data is downloaded from kobo, it will contain this column
-    if (col_name == "_uuid"):
-        if cell_value == "": #if there is no uuid specified, new one will be generated
-            formatted_uuid = formatted_uuid + generate_new_instance_id()[1]
-        else:
-            formatted_uuid = formatted_uuid + str(cell_value)
-                
-    #column headers that include / indicate {group_name}/{question}
-    group_arr = col_name.split('/')
-    if len(group_arr) == 2:
-        _uid = group_element(_uid, str(col_name), str(cell_value))
-        return all_empty, formatted_uuid
+    if (
+        "/" in col_name
+    ):  # column headers that include / indicate {group_name}/{question}
+        submission_xml = create_group(
+            col_name.split("/"), str(cell_value), submission_xml
+        )
+    else:
+        if col_name in ["end", "start"]:
+            cell_value = cell_value.isoformat() if cell_value else ""
+        create_xml_element_and_tag(submission_xml, col_name, str(cell_value))
 
-    #repeat groups, for initial data transfer to kobo (without uuid) are saved like this: repeat/testname/group_question_1_text
-    #therefore, column header for a repeat group will have three elements when split()
-    if len(group_arr) == 3 and group_arr[0] == "repeat":
-        _uid = initial_repeat(_uid, group_arr, str(cell_value))
-        return all_empty, formatted_uuid
-                
-    if not (col_name.startswith("_")):  #columns automatically generated with kobo (this is after data has been downloaded from kobo)
-        cell_element = ET.SubElement(_uid, col_name)
-        if (col_name == "end" or col_name == "start"):
-            if (gtransfer):
-                cell_value = format_timestamp(str(cell_value))
-            elif (cell_value != ""):
-                cell_value = cell_value.isoformat()                
-        cell_element.text = str(cell_value)
-            
-    return all_empty, formatted_uuid
+    return all_empty
 
-def general_xls_to_xml(excel_file_path, submission_data, gtransfer = False, warnings = False):
+
+def process_single_row(row, headers, submission_xml):
+    """handles a single submission (represented in one row of xls)
+    iterates through cells in the row and create corresponding XML elements
+
+    returns:
+    _index value of the submission
+    the uuid (if one exists)
+    all_empty boolean value which is true when submission is empty/blank"""
+    all_empty = True
+    index = str(row[headers.index("_index")])
+    question_headers = get_question_headers(headers)
+    formatted_uuid = None
+    if "_uuid" in headers:
+        formatted_uuid = extract_uuid(str(row[headers.index("_uuid")]))
+
+    for col_num, cell_value in enumerate(row, start=1):
+        col_name = headers[col_num - 1]
+        if col_name in question_headers:
+            all_empty = process_data_in_columns(submission_xml, col_name, cell_value)
+            if (
+                not all_empty
+            ):  # all_empty should only be true when all cell values are blank
+                all_empty = False
+
+    return index, formatted_uuid, all_empty
+
+
+def add_version_and_meta_element(submission_xml, formatted_uuid, __version__):
+    """
+    creates xml elements at the end of submission stating version number and meta data
+    """
+    version_element = create_xml_element_and_tag(None, "__version__", __version__)
+    submission_xml.append(version_element)
+    formatted_uuid = add_meta_element(submission_xml, formatted_uuid)
+    return formatted_uuid
+
+
+def add_prev_next(root):
+    """
+    creates xml elements that appear prior to the results data (count, next, previous) and appends it
+    """
+    create_xml_element_and_tag(root, "next", None)
+    create_xml_element_and_tag(root, "previous", None)
+    return root
+
+
+def general_xls_to_xml(excel_file_path, submission_data, warnings=False):
+    """
+    parses entire xlsx and creates xml from it
+    returns: root of the xml that can be used to transfer to kobo project
+    """
     workbook = open_xlsx(excel_file_path)
-    sheet = workbook.worksheets[0]  #first sheet should have all data, if xlsx contains other sheets, they must be for repeat groups
+    # first sheet should have all data, if xlsx contains other sheets, they must be for repeat groups
+    sheet = workbook.worksheets[0]
 
-    uid = submission_data["asset_uid"]
-    formhubuuid = submission_data["formhub_uuid"]
-    v = submission_data["version"]
-    __version__ = submission_data["__version__"]
-
-    root = ET.Element("root") 
-    results = ET.Element("results")
+    formhub_uuid, __version__ = extract_submission_data(submission_data)
+    nsmap_dict = create_nsmap_dict(submission_data)
+    root, results = initialize_elements()
     headers = [cell.value for cell in sheet[1]]
-    
-    if warnings:
-        kobo_xls_match_warnings(headers, submission_data)
-    
-    if (gtransfer): #data collected in google forms automatically records timestamp
-        for i in range(len(headers)): 
-            if (headers[i] == "Timestamp"): 
-                headers[i] = "end"
-            headers[i] =  headers[i].rstrip(string.punctuation)
-            headers[i] = headers[i].replace(" ", "_")
 
-    num_results = 0
-    NSMAP = {"xmlns:jr" :  'http://openrosa.org/javarosa',
-         "xmlns:orx" : 'http://openrosa.org/xforms', 
-         "id" : str(uid),
-         "version" : str(v)}
-    for row_num, row in enumerate(sheet.iter_rows(min_row=2, values_only=True,), start=2):
-        _uid = formhub_element(uid, NSMAP, formhubuuid)
-        if (gtransfer):
-            #google form data does not collect start time data
-            start_element = ET.Element("start")
-            _uid.append(start_element)
+    for row in sheet.iter_rows(
+        min_row=2,
+        values_only=True,
+    ):
+        submission_xml = add_formhub_element(nsmap_dict, formhub_uuid)
+        # error will be raised if no $edited column is found
+        if not eval(  # all false or blank $edited submissions are being skipped
+            str(row[headers.index("$edited")])
+        ):
+            continue
 
-        all_empty = True
-        formatted_uuid = "uuid:"
-        # Iterate through cells in the row and create corresponding XML elements
-        for col_num, cell_value in enumerate(row, start=1):
-                col_name = headers[col_num-1]
-                if col_name == "":
-                    continue
-                all_empty, formatted_uuid = single_submission_xml(gtransfer, _uid, col_name, cell_value, all_empty, formatted_uuid)
-        
-        if (all_empty):
-            print("Warning: Data may include one or more blank responses where no questions were answered.")
-            
-        #iterate through other sheets to create repeat groups, and append to xml
-        repeat_elements =  repeat_groups(_uid, formatted_uuid, workbook)
-        if (repeat_elements != None):
-            _uid = repeat_elements
-        
-        version = ET.Element("__version__")
-        version.text = (__version__)
-        _uid.append(version)
+        index, formatted_uuid, all_empty = process_single_row(
+            row, headers, submission_xml
+        )
+        if all_empty:
+            print(
+                "Warning: Data may include one or more blank responses where no questions were answered."
+            )
+        submission_xml = xml_from_repeat_sheets(
+            submission_xml, workbook, index
+        )  # iterate through other sheets to create repeat groups, and append to xml
+        formatted_uuid = add_version_and_meta_element(
+            submission_xml, formatted_uuid, __version__
+        )
 
-        formatted_uuid = meta_element(_uid, formatted_uuid)
+        # for initial transfer (without uuids), each submission associated with index
+        # index folder is renamed to uuid to complete transfer to kobo and associate attachment to specific response
+        rename_media_folder(submission_data, formatted_uuid, index)
+        results.append(submission_xml)
 
-        #for initial transfer (without uuids), attachments are saved with row numbers
-        #row number folder is renamed to uuid to complete transfer to kobo and associate attachment to specific response
-        rename_media_folder(submission_data, formatted_uuid[len("uuid:"):], row_num)
-        results.append(_uid)
-        num_results += 1
-    
-    count =  ET.SubElement(root, 'count')
-    count.text = (str(num_results))
-    next = ET.SubElement(root, 'next')
-    next.text = None 
-    previous = ET.SubElement(root, 'previous')
-    previous.text = None 
+    root = add_prev_next(root)
     root.append(results)
-
+    # test_by_writing(root)
     workbook.close()
     return root
 
+
+def test_by_writing(root):
+    root = ET.ElementTree(root)
+    root.write("./submission.xml")
+
+
+def find_nth_tag(xml, n, element_tag):
+    """
+    finds nth occurence of tag in xml and returns the element
+    used to append data to correct repeat group
+    """
+    occurrences = 0
+    for element in xml.iter(element_tag):
+        occurrences += 1
+        if occurrences == int(n):
+            return element
+    return None
+
+
+def get_sheet_info(headers):
+    """
+    method is only called when there are repeat groups
+    extracts and returns the index value of _index, _parent_index, and _parent_table_name, within
+    the headers list"""
+    try:
+        index_header = headers.index("_index")
+        parent_index_header = headers.index("_parent_index")
+        parent_table_header = headers.index("_parent_table_name")
+    except Exception:
+        print(
+            "Error: if xlsx file has multiple tabs, data in extra sheets must be in expected repeating group format"
+        )
+        raise
+    return index_header, parent_index_header, parent_table_header
+
+
+def add_groups_if_missing(question_headers, sheet_names, submission_xml):
+    """when repeat groups are nested within groups, and groups haven't been created yet (because they don't appear in
+    first xls sheet), they need to be created an added to xml before proceeding with repeat groups.
+    this method checks if all groups that have repeat groups nested within them are part of xml, and creates them if they aren't
+    """
+    non_repeat_groups = []
+    for column_label in question_headers:
+        group_names_arr = column_label.split("/")
+        for index, group in enumerate(group_names_arr):
+            if str(group) in sheet_names:  # sheet names are the repeat group names
+                # if groups exist before first repeat group in column label [group1/group2/repeatgroup/..], append to list
+                non_repeat_groups.append(group_names_arr[:index])
+                break
+    # create non-repeating group in submission_xml if it doesn't exist yet
+    for group in non_repeat_groups:
+        create_group(group, None, submission_xml)
+
+
+def create_repeat_group_xml_element(current_sheet_name, question_headers, headers, row):
+    """
+    creates the xml element for a single row in the repeat group xls sheet
+
+    returns:
+    repeat_sheet_xml_element is the xml for the current repeat sheet. each sheet in xls name should be the same as repeat group.
+    when column label might be group1/group2/repeatgroup/repeatgroup2/question1, and the sheet name is repeatgroup2, xml element repeatgroup2 (with question1 nested) will be returend
+    index_of_sheet_group is the index where sheet name is found in column label. in above example, when column label is split('/'), index is 3
+    parent_of_sheet_group is the group preceding sheet name repeat group. in above example, this is repeatgroup
+
+    """
+    repeat_sheet_xml_element = None
+    index_of_sheet_group = None
+    parent_of_sheet_group = None
+    for col_name in question_headers:
+        cell_value = str(row[headers.index(col_name)])
+
+        if cell_value in [None, "None", "none"]:
+            cell_value = ""
+
+        group_names = col_name.split("/")
+        # split into array of header, starts creating repeat xml element from when repeat sheet name is mentioned
+        index_of_sheet_group = group_names.index(str(current_sheet_name))
+
+        if (
+            repeat_sheet_xml_element is None
+        ):  # this is for first column of the sheet, creates all elements in header starting from spreadsheet name
+            repeat_sheet_xml_element = create_group(
+                group_names[index_of_sheet_group:], str(cell_value)
+            )
+        else:  # following columns of the sheet (nest the elements, or append to the elements created from first column)
+            repeat_sheet_xml_element = create_group(
+                group_names[index_of_sheet_group:],
+                str(cell_value),
+                repeat_sheet_xml_element,
+            )
+    if index_of_sheet_group != 0:
+        parent_of_sheet_group = group_names[index_of_sheet_group - 1]
+
+    return repeat_sheet_xml_element, index_of_sheet_group, parent_of_sheet_group
+
+
+def xml_from_repeat_sheets(submission_xml, workbook, submission_index):
+    """method is called when there are multiple sheets in xlsx, because it is assumed to be repeat groups
+    method iterates through the xls sheets and adds each repeat group element to the xml
+    limitation: sheet needs to be ordered from parent —> child; the parent_table must precede child in xls sheet order
+    """
+    sheet_names = workbook.sheetnames
+    parent_indexes = []  # cleared every time its a new sheet.
+    for sheet_name in sheet_names[1:]:
+        new_indexes = []
+        sheet = workbook[sheet_name]
+        headers = [cell.value for cell in sheet[1]]
+
+        index_header, parent_index_header, parent_table_header = get_sheet_info(headers)
+        question_headers = get_question_headers(headers)
+        add_groups_if_missing(
+            question_headers, sheet_names, submission_xml
+        )  # ensure all non-repeating group headers exist in submission_xml
+
+        for row in sheet.iter_rows(min_row=2, values_only=True):
+            index = str(row[index_header])
+            parent_index = str(row[parent_index_header])  # row's parent value
+            parent_table = str(row[parent_table_header])
+            parent_is_first_sheet = False
+
+            if parent_table == str(sheet_names[0]):
+                parent_is_first_sheet = True
+
+            if parent_is_first_sheet:
+                if parent_index != submission_index:
+                    continue
+                # populate parent_indexes with index of the rows that have submission_index passed in from first sheet
+                parent_indexes.append(index)
+
+            else:
+                # submission row only relevant if its part of the parent_indexes
+                if parent_index not in parent_indexes:
+                    continue
+                new_indexes.append(
+                    index
+                )  # mantain relevant indexes for this submission for next sheet (where current sheet might be parent)
+
+            repeat_sheet_xml_element, index_of_sheet_group, parent_of_sheet_group = (
+                create_repeat_group_xml_element(
+                    sheet_name, question_headers, headers, row
+                )
+            )
+
+            if question_headers != []:
+                element_to_append_to = None
+                if (
+                    parent_is_first_sheet and index_of_sheet_group == 0
+                ):  # repeat group is not nested
+                    element_to_append_to = submission_xml
+                elif parent_is_first_sheet and index_of_sheet_group != 0:
+                    element_to_append_to = submission_xml.find(
+                        ".//" + str(parent_of_sheet_group)
+                    )
+                else:
+                    element_to_append_to = find_nth_tag(
+                        submission_xml,
+                        parent_indexes.index(parent_index) + 1,
+                        parent_of_sheet_group,
+                    )
+                element_to_append_to.append(repeat_sheet_xml_element)
+
+                if row == sheet.max_row:
+                    parent_indexes = new_indexes
+
+    return submission_xml
