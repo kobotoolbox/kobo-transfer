@@ -13,6 +13,7 @@ from transfer.xml import (
     print_stats,
     transfer_submissions,
 )
+from transfer.validation_status import sync_validation_statuses
 
 
 def get_uuids(config_loc, params):
@@ -70,10 +71,17 @@ def main(
     quiet=False,
     validate=True,
     sync=False,
+    validation_statuses=False,
     chunk_size=1000,
     config_file=None,
 ):
     config = Config(config_file=config_file, validate=validate)
+
+    if validation_statuses:
+        print('✏️ Syncing validation statuses')
+        sync_validation_statuses(config, chunk_size, limit)
+        sys.exit()
+
     config_src = config.src
     all_results = []
     submission_edit_data = get_submission_edit_data()
@@ -190,6 +198,13 @@ if __name__ == '__main__':
         help='Sync src and dest project data',
     )
     parser.add_argument(
+        '--validation-statuses',
+        '-vs',
+        default=False,
+        action='store_true',
+        help='Sync src and dest validation statuses',
+    )
+    parser.add_argument(
         '--chunk-size',
         '-cs',
         default=1000,
@@ -214,6 +229,7 @@ if __name__ == '__main__':
             quiet=args.quiet,
             validate=not args.no_validate,
             sync=args.sync,
+            validation_statuses=args.validation_statuses,
             chunk_size=args.chunk_size,
             config_file=args.config_file,
         )
