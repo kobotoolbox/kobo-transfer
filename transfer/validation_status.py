@@ -6,12 +6,6 @@ from utils.joins import left_join
 from utils.iterators import chunker
 
 
-VALIDATOIN_OPTIONS = [
-    'validation_status_on_hold',
-    'validation_status_not_approved',
-    'validation_status_approved'
-]
-
 def get_params(loc, limit):
     fields = ['_uuid']
     if loc == 'src':
