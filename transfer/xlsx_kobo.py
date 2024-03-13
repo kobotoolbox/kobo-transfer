@@ -4,8 +4,6 @@ import string
 import openpyxl
 from xml.etree import ElementTree as ET
 
-from helpers.config import Config
-from transfer.xml import get_src_submissions_xml
 from .media import rename_media_folder
 from .xml import generate_new_instance_id
 
@@ -28,6 +26,29 @@ def open_xlsx(excel_file_path):
         print(f"⚠️ Something went wrong when reading xlsx file: {e}")
         raise (e)
     return workbook
+
+
+def create_xml_element_and_tag(parent, tag, text, namespace=None):
+    if tag is None:
+        raise Exception("Something went wrong.")
+
+    if parent is None and text is None:
+        if namespace is None:
+            new_element = ET.Element(tag)
+        else:
+            new_element = ET.Element(
+                tag, namespace
+            )  # condition only entered for the nsmap dict
+    elif parent is None:
+        new_element = ET.Element(tag)
+        new_element.text = text
+    elif text is None:
+        new_element = ET.SubElement(parent, tag)
+    else:
+        new_element = ET.SubElement(parent, tag)
+        new_element.text = text
+
+    return new_element
 
 
 def add_formhub_element(nsmap_dict, formhub_uuid):
@@ -73,38 +94,51 @@ def add_meta_element(submission_xml, formatted_uuid):
     return formatted_uuid
 
 
-def extract_uuid(cell_value):
+def initialize_elements():
     """
-    if uuid is not present in xlsx, it generates a uuid for the submission
-    othrerwise, it extracts uuid from cell and returns it
+    creates and returns initial parent xml elements for data.
+    root and results will be appended to as xlsx is parsed.
     """
-    formatted_uuid = None
-    if cell_value:
-        formatted_uuid = "uuid:" + str(cell_value)
-    return formatted_uuid
+    root = create_xml_element_and_tag(None, "root", None)
+    results = create_xml_element_and_tag(None, "results", None)
+    return root, results
 
 
-def create_xml_element_and_tag(parent, tag, text, namespace=None):
-    if tag is None:
-        raise Exception("Something went wrong.")
-
-    if parent is None and text is None:
-        if namespace is None:
-            new_element = ET.Element(tag)
-        else:
-            new_element = ET.Element(
-                tag, namespace
-            )  # condition only entered for the nsmap dict
-    elif parent is None:
-        new_element = ET.Element(tag)
-        new_element.text = text
-    elif text is None:
-        new_element = ET.SubElement(parent, tag)
-    else:
-        new_element = ET.SubElement(parent, tag)
-        new_element.text = text
-
-    return new_element
+def get_question_headers(headers):
+    """filters the column labels/headers, and returns only the ones that contain questions"""
+    question_headers = []
+    added_on_headers_during_export = [
+        "_id",
+        "_uuid",
+        "_submission_time",
+        "_validation_status",
+        "_notes",
+        "_status",
+        "__version__",
+        "_submitted_by",
+        "_tags",
+        "_index",
+        "$edited",
+        "_parent_table_name",
+        "_parent_index",
+        "_submission__id",
+        "_submission__uuid",
+        "_submission__submission_time",
+        "_submission__validation_status",
+        "_submission__notes",
+        "_submission__status",
+        "_submission__submitted_by",
+        "_submission___version__",
+        "_submission__tags",
+    ]
+    recent_question = None
+    for header in headers:
+        geopoint = is_geopoint_header(str(recent_question), header)
+        if geopoint or header in added_on_headers_during_export:
+            continue
+        recent_question = header
+        question_headers.append(header)
+    return question_headers
 
 
 def is_geopoint_header(recent_question, col_name):
@@ -117,6 +151,50 @@ def is_geopoint_header(recent_question, col_name):
         r"_" + re.escape(recent_question) + r"_(latitude|longitude|altitude|precision)"
     )
     return re.match(geopoint_patterns, col_name) is not None
+
+
+def create_group(group_names_arr, cell_value, parent_group=None):
+    """
+    Creates and returns an xml element of nested groups.
+
+    :param group_name Header containing group split by ('/'). Example of xlsx header that would be split is [pets/pet/name_of_pet]
+    :param cell_value: value stored in the cell for a particular submission, under the group_name column.
+    :param parent_group: None when the first string in group_name is the root.
+    """
+    if parent_group is None:
+        initial = create_xml_element_and_tag(None, group_names_arr[0], None)
+        parent_group = initial
+    else:
+        initial = parent_group
+
+    group_element = None
+    for group in group_names_arr:
+        if parent_group.tag == group:
+            continue
+        group_element = parent_group.find(".//" + group)
+
+        if group_element == None:
+            group_element = create_xml_element_and_tag(parent_group, group, None)
+        if (
+            group == group_names_arr[-1]
+        ) and cell_value:  # last element in group_name is the question
+            group_element.text = str(cell_value)
+
+        parent_group = group_element
+        group_element = None
+
+    return initial
+
+
+def extract_uuid(cell_value):
+    """
+    if uuid is not present in xlsx, it generates a uuid for the submission
+    othrerwise, it extracts uuid from cell and returns it
+    """
+    formatted_uuid = None
+    if cell_value:
+        formatted_uuid = "uuid:" + str(cell_value)
+    return formatted_uuid
 
 
 def extract_submission_data(submission_data):
@@ -195,14 +273,23 @@ def process_single_row(row, headers, submission_xml):
     return index, formatted_uuid, all_empty
 
 
-def initialize_elements():
+def add_version_and_meta_element(submission_xml, formatted_uuid, __version__):
     """
-    creates and returns initial parent xml elements for data.
-    root and results will be appended to as xlsx is parsed.
+    creates xml elements at the end of submission stating version number and meta data
     """
-    root = create_xml_element_and_tag(None, "root", None)
-    results = create_xml_element_and_tag(None, "results", None)
-    return root, results
+    version_element = create_xml_element_and_tag(None, "__version__", __version__)
+    submission_xml.append(version_element)
+    formatted_uuid = add_meta_element(submission_xml, formatted_uuid)
+    return formatted_uuid
+
+
+def add_prev_next(root):
+    """
+    creates xml elements that appear prior to the results data (count, next, previous) and appends it
+    """
+    create_xml_element_and_tag(root, "next", None)
+    create_xml_element_and_tag(root, "previous", None)
+    return root
 
 
 def general_xls_to_xml(excel_file_path, submission_data, warnings=False):
@@ -261,25 +348,6 @@ def test_by_writing(root):
     root.write("./submission.xml")
 
 
-def add_version_and_meta_element(submission_xml, formatted_uuid, __version__):
-    """
-    creates xml elements at the end of submission stating version number and meta data
-    """
-    version_element = create_xml_element_and_tag(None, "__version__", __version__)
-    submission_xml.append(version_element)
-    formatted_uuid = add_meta_element(submission_xml, formatted_uuid)
-    return formatted_uuid
-
-
-def add_prev_next(root):
-    """
-    creates xml elements that appear prior to the results data (count, next, previous) and appends it
-    """
-    create_xml_element_and_tag(root, "next", None)
-    create_xml_element_and_tag(root, "previous", None)
-    return root
-
-
 def find_nth_tag(xml, n, element_tag):
     """
     finds nth occurence of tag in xml and returns the element
@@ -291,76 +359,6 @@ def find_nth_tag(xml, n, element_tag):
         if occurrences == int(n):
             return element
     return None
-
-
-def create_group(group_names_arr, cell_value, parent_group=None):
-    """
-    Creates and returns an xml element of nested groups.
-
-    :param group_name Header containing group split by ('/'). Example of xlsx header that would be split is [pets/pet/name_of_pet]
-    :param cell_value: value stored in the cell for a particular submission, under the group_name column.
-    :param parent_group: None when the first string in group_name is the root.
-    """
-    if parent_group is None:
-        initial = create_xml_element_and_tag(None, group_names_arr[0], None)
-        parent_group = initial
-    else:
-        initial = parent_group
-
-    group_element = None
-    for group in group_names_arr:
-        if parent_group.tag == group:
-            continue
-        group_element = parent_group.find(".//" + group)
-
-        if group_element == None:
-            group_element = create_xml_element_and_tag(parent_group, group, None)
-        if (
-            group == group_names_arr[-1]
-        ) and cell_value:  # last element in group_name is the question
-            group_element.text = str(cell_value)
-
-        parent_group = group_element
-        group_element = None
-
-    return initial
-
-
-def get_question_headers(headers):
-    """filters the column labels/headers, and returns only the ones that contain questions"""
-    question_headers = []
-    added_on_headers_during_export = [
-        "_id",
-        "_uuid",
-        "_submission_time",
-        "_validation_status",
-        "_notes",
-        "_status",
-        "__version__",
-        "_submitted_by",
-        "_tags",
-        "_index",
-        "$edited",
-        "_parent_table_name",
-        "_parent_index",
-        "_submission__id",
-        "_submission__uuid",
-        "_submission__submission_time",
-        "_submission__validation_status",
-        "_submission__notes",
-        "_submission__status",
-        "_submission__submitted_by",
-        "_submission___version__",
-        "_submission__tags",
-    ]
-    recent_question = None
-    for header in headers:
-        geopoint = is_geopoint_header(str(recent_question), header)
-        if geopoint or header in added_on_headers_during_export:
-            continue
-        recent_question = header
-        question_headers.append(header)
-    return question_headers
 
 
 def get_sheet_info(headers):
@@ -503,8 +501,9 @@ def xml_from_repeat_sheets(submission_xml, workbook, submission_index):
                         parent_indexes.index(parent_index) + 1,
                         parent_of_sheet_group,
                     )
-
                 element_to_append_to.append(repeat_sheet_xml_element)
+
                 if row == sheet.max_row:
                     parent_indexes = new_indexes
+
     return submission_xml
