@@ -38,23 +38,18 @@ def add_formhub_element(nsmap_dict, formhub_uuid):
     :param nsmap_dict: dictionary containing uid and version
     """
     uid = nsmap_dict['id']
-    _uid = create_xml_element_and_tag(None, uid, None, nsmap_dict)
-    fhub_element = create_xml_element_and_tag(_uid, 'formhub', None)
+    submission_xml = create_xml_element_and_tag(None, uid, None, nsmap_dict)
+    fhub_element = create_xml_element_and_tag(submission_xml, 'formhub', None)
     create_xml_element_and_tag(fhub_element, 'uuid', str(formhub_uuid))
-    return _uid
+    return submission_xml
 
 
-def add_meta_element(_uid, formatted_uuid):
-    """creates element in xml with meta tag. Meta contains instanceId and deprecatedId elements and appears at end of each submission.
-    Format is as follows:
-          <meta>
-                <instanceID>uuid:a0io37ef-ac71-434b-93b6-1243ef4c123f</instanceID>
-                <deprecatedID>
-            </meta>
+def add_meta_element(submission_xml, formatted_uuid):
+    """creates element in xml with meta tag. meta contains instanceId and deprecatedId elements and appears at end of each submission.
     once meta element is created, it is appended to the xml of whole submission, and then returned.
     method is only called when $edited value is true for the submission
 
-    :param _uid is the xml representing a single submission. it is built upon and starts with the inital nsmaplement
+    :param subnmission_xml is the xml representing a single submission. it is built upon and starts with the inital nsmaplement
     :param formatted_uuid is unique instance id of the submission
     """
 
@@ -73,7 +68,7 @@ def add_meta_element(_uid, formatted_uuid):
         instanceId.text = str(generate_new_instance_id()[1])
         formatted_uuid = instanceId.text
 
-    _uid.append(meta)
+    submission_xml.append(meta)
 
     return formatted_uuid
 
@@ -143,11 +138,11 @@ def create_nsmap_dict(submission_data):
     return nsmap_dict
 
 
-def process_data_in_columns(_uid, col_name, cell_value):
+def process_data_in_columns(submission_xml, col_name, cell_value):
     """
     creates the xml for a single submission which is represented in a single row in the xlsx
 
-    :param _uid is the root element for the single submission that will be appended to as rows are parsed
+    :param submission_xml is the root element for the single submission that will be appended to as rows are parsed
     :param col_name is the header/label of the column in xlsx
     :param cell_value i
 
@@ -162,17 +157,17 @@ def process_data_in_columns(_uid, col_name, cell_value):
     if (
         "/" in col_name
     ):  # column headers that include / indicate {group_name}/{question}
-        _uid = create_group(col_name.split('/'), str(cell_value), _uid)
+        submission_xml = create_group(col_name.split('/'), str(cell_value), submission_xml)
     else:
         if col_name in ['end', 'start']:
             cell_value = cell_value.isoformat() if cell_value else ''
-        create_xml_element_and_tag(_uid, col_name, str(cell_value))
+        create_xml_element_and_tag(submission_xml, col_name, str(cell_value))
 
     return all_empty
 
 
 # Iterate through cells in the row and create corresponding XML elements
-def process_single_row(row, headers, _uid):
+def process_single_row(row, headers, submission_xml):
     """handles a single submission (represented in one row of xls)
     returns:
     _index value of the submission
@@ -188,7 +183,7 @@ def process_single_row(row, headers, _uid):
     for col_num, cell_value in enumerate(row, start=1):
         col_name = headers[col_num - 1]
         if col_name in question_headers:
-            all_empty = process_data_in_columns(_uid, col_name, cell_value)
+            all_empty = process_data_in_columns(submission_xml, col_name, cell_value)
             if (
                 not all_empty
             ):  # all_empty should only be true when all cell values are blank
@@ -223,31 +218,30 @@ def general_xls_to_xml(excel_file_path, submission_data, warnings=False):
 
     #    if warnings:
     #        kobo_xls_match_warnings(headers, submission_data)
-
+    
     for row in sheet.iter_rows(
         min_row=2,
         values_only=True,
     ):
-        _uid = add_formhub_element(nsmap_dict, formhub_uuid)
-
+        submission_xml = add_formhub_element(nsmap_dict, formhub_uuid)
         #error will be raised if no $edited column is found
         if not eval(  #all false or blank $edited submissions are being skipped
             str(row[headers.index('$edited')])
         ): 
             continue
 
-        index, formatted_uuid, all_empty = process_single_row(row, headers, _uid)
+        index, formatted_uuid, all_empty = process_single_row(row, headers, submission_xml)
         if all_empty:
             print(
                 'Warning: Data may include one or more blank responses where no questions were answered.'
             )
-        _uid = add_repeat_elements(_uid, workbook, index)  # iterate through other sheets to create repeat groups, and append to xml
-        formatted_uuid = add_version_and_meta_element(_uid, formatted_uuid, __version__)
+        submission_xml = xml_from_repeat_sheets(submission_xml, workbook, index)  # iterate through other sheets to create repeat groups, and append to xml
+        formatted_uuid = add_version_and_meta_element(submission_xml, formatted_uuid, __version__)
 
         # for initial transfer (without uuids), each submission associated with index
         # index folder is renamed to uuid to complete transfer to kobo and associate attachment to specific response
         rename_media_folder(submission_data, formatted_uuid, index)
-        results.append(_uid)
+        results.append(submission_xml)
 
     root = add_prev_next(root)
     root.append(results)
@@ -259,14 +253,13 @@ def test_by_writing(root):
     root = ET.ElementTree(root)
     root.write('./submission.xml')
 
-
-def add_version_and_meta_element(_uid, formatted_uuid, __version__):
+def add_version_and_meta_element(submission_xml, formatted_uuid, __version__):
     """
     creates xml elements at the end of submission stating version number and meta data
     """
     version_element = create_xml_element_and_tag(None, '__version__', __version__)
-    _uid.append(version_element)
-    formatted_uuid = add_meta_element(_uid, formatted_uuid)
+    submission_xml.append(version_element)
+    formatted_uuid = add_meta_element(submission_xml, formatted_uuid)
     return formatted_uuid
 
 
@@ -396,7 +389,17 @@ def add_groups_if_missing(question_headers, sheet_names, submission_xml):
         create_group(group, None, submission_xml)
 
 
-def create_repeat_group_xml_elements(current_sheet_name, question_headers, headers, row):
+def create_repeat_group_xml_element(current_sheet_name, question_headers, headers, row):
+    """
+    creates the xml element for a single row in the repeat group xls sheet
+
+    returns:
+    repeat_sheet_xml_element is the xml for the current repeat sheet. each sheet in xls name should be the same as repeat group.
+    when column label might be group1/group2/repeatgroup/repeatgroup2/question1, and the sheet name is repeatgroup2, xml element repeatgroup2 (with question1 nested) will be returend
+    index_of_sheet_group is the index where sheet name is found in column label. in above example, when column label is split('/'), index is 3
+    parent_of_sheet_group is the group preceding sheet name repeat group. in above example, this is repeatgroup
+    
+    """
     repeat_sheet_xml_element = None
     index_of_sheet_group = None
     parent_of_sheet_group = None
@@ -420,12 +423,13 @@ def create_repeat_group_xml_elements(current_sheet_name, question_headers, heade
                         str(cell_value),
                         repeat_sheet_xml_element,
                     )
-    parent_of_sheet_group = group_names[index_of_sheet_group - 1]
+    if index_of_sheet_group != 0:
+        parent_of_sheet_group = group_names[index_of_sheet_group - 1]
 
     return repeat_sheet_xml_element, index_of_sheet_group, parent_of_sheet_group
     
 
-def add_repeat_elements(submission_xml, workbook, submission_index):
+def xml_from_repeat_sheets(submission_xml, workbook, submission_index):
     """method is called when there are multiple sheets in xlsx, because it is assumed to be repeat groups
     method iterates through the xls sheets and adds each repeat group element to the xml
     limitation: sheet needs to be ordered from parent —> child; the parent_table must precede child in xls sheet order
@@ -448,93 +452,33 @@ def add_repeat_elements(submission_xml, workbook, submission_index):
             parent_is_first_sheet = False
 
             if parent_table == str(sheet_names[0]):
-                parent_is_first_sheet = True
+                parent_is_first_sheet = True 
             
             if parent_is_first_sheet:
                 if parent_index != submission_index:
                     continue
+                # populate parent_indexes with index of the rows that have submission_index passed in from first sheet
                 parent_indexes.append(index)
             
             else:
+                 # submission row only relevant if its part of the parent_indexes
                 if parent_index not in parent_indexes:
                     continue
-                new_indexes.append(index)
+                new_indexes.append(index) #mantain relevant indexes for this submission for next sheet (where current sheet might be parent)
 
-            """if parent_table == str(
-                sheet_names[0]
-            ):  # if the parent_table is the main sheet (the first one
-            #rows that should be added to xml are ones with same value as this submission (passed in as parameter)
-                if parent_index != submission_index:
-                    continue
-                else:
-                    # populate parent_indexes with index of the rows that have parent_group == passed in value from first sheet
-                    parent_indexes.append(
-                        index
-                    )  # first sheet (parent_indexes never empty because added here)
-            else:  # if the parent_table a different sheet (not the first one)
-                if (
-                    parent_index not in parent_indexes
-                ):  # submission row only relevant if its part of the parent_indexes
-                    continue
-                else:
-                    new_indexes.append(index)"""
-
-            repeat_sheet_xml_element, index_of_sheet_group, parent_of_sheet_group = create_repeat_group_xml_elements(sheet_name, question_headers, headers, row)
+            repeat_sheet_xml_element, index_of_sheet_group, parent_of_sheet_group = create_repeat_group_xml_element(sheet_name, question_headers, headers, row)
 
             if question_headers != []: 
                 element_to_append_to = None
-                
                 if parent_is_first_sheet and index_of_sheet_group == 0: #repeat group is not nested
                     element_to_append_to = submission_xml
-                    #submission_xml.append(repeat_sheet_xml_element)
-            
                 elif parent_is_first_sheet and index_of_sheet_group != 0: 
                     element_to_append_to = submission_xml.find(
                             './/' + str(parent_of_sheet_group))
-                    #group_to_append_to.append(repeat_sheet_xml_element)
                 else:
                     element_to_append_to = find_nth_tag(submission_xml,parent_indexes.index(parent_index) + 1,parent_of_sheet_group)
                 
-                
                 element_to_append_to.append(repeat_sheet_xml_element)
-            
-                #append_repeat_sheet_xml_element(parent_is_first_sheet, index_of_sheet_group, submission_xml, repeat_sheet_xml_element, parent_of_sheet_group)
-
-                #return the thing to append to and append here maybe TODO
-
-        
-
                 if row == sheet.max_row:
                     parent_indexes = new_indexes
-
     return submission_xml
-
-def append_repeat_sheet_xml_element(parent_is_first_sheet, index_of_sheet_group, submission_xml, repeat_sheet_xml_element, parent_of_sheet_group):
-    if parent_is_first_sheet: # append to xml if parent_table is initial sheet
-        if index_of_sheet_group == 0: #if repeat group is not nested
-            submission_xml.append(repeat_sheet_xml_element)
-        else:
-                        #if repeat_group is nested, must be nested within a non-repeating group when parent_table is first sheet
-                        #find group that repeat is nested within, and append to it
-            group_to_append_to = submission_xml.find(
-                            './/' + str(parent_of_sheet_group)
-            )
-            group_to_append_to.append(repeat_sheet_xml_element)
-
-    else: # if its not the first sheet
-                    #parent_group_of_repeat_sheet = question_headers[0].split('/')[
-                     #   index_of_sheet_group - 1
-                    #]
-                    # group preceding current sheet index in header (repeat element needs to be nested in this)
-                    # group preceding must be repeat group or part of repeat group since parent_table is not sheets[0]
-
-                    # given submission_xml, find nth parent_group_of_repeat_sheet element
-
-                    #TODO test here
-        element = find_nth_tag(
-            submission_xml,
-            parent_indexes.index(parent_index) + 1,
-            parent_of_sheet_group,
-            )
-        element.append(repeat_sheet_xml_element)
-
