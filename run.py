@@ -99,7 +99,7 @@ def main(
         xml_url_src += f'&query={json.dumps(config.data_query)}'
 
     if sync:
-        print('🪪  Getting _uuid values from src and dest projects')
+        print('🪪 Getting _uuid values from src and dest projects')
         diff_uuids = get_diff_uuids(config)
 
         if not diff_uuids:
