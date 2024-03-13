@@ -48,7 +48,7 @@ def get_xml_value_media_mapping(values):
 def get_src_submissions_xml(xml_url):
     config = Config().src
     res = requests.get(
-        url=xml_url, headers=config['headers'], params=config['params']
+        url=xml_url, headers=config['headers']
     )
     if not res.status_code == 200:
         raise Exception('Something went wrong')
