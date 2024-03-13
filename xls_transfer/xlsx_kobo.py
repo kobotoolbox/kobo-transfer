@@ -4,8 +4,8 @@ import string
 import openpyxl
 from xml.etree import ElementTree as ET
 
-from .media import rename_media_folder
-from .xml import generate_new_instance_id
+from transfer.media import rename_media_folder
+from transfer.xml import generate_new_instance_id
 
 
 def open_xlsx(excel_file_path):

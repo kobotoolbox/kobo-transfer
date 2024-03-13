@@ -1,16 +1,14 @@
+import argparse
+import json
 import os
+import pathlib
 import re
 import requests
 import shutil
+import sys
 import time
 
 from helpers.config import Config
-
-
-import os
-import shutil
-
-
 
 def rename_media_folder(submission_data, uuid, row_num):
     current_attachments_path = os.path.join(

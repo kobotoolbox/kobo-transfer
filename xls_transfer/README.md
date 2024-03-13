@@ -28,7 +28,7 @@ pip install openpyxl pandas requests xmltodict python-dateutil
 
 1. Destination project must be deployed and have the same content as xlsx form. 
 
-2. Clone a copy of this repo somewhere on your local machine. Create virtual environment using command python3 -m venv .venv, and install requirements using command pip install -r xls-transfer/xls-import-requirements.txt
+2. Clone a copy of this repo somewhere on your local machine. Create virtual environment using command python3 -m venv .venv, and install requirements using command pip install -r xls_transfer/xls-import-requirements.txt
 
 3. Copy `sample-config.json` to `config.json` and add your configuration details
    for the source (`src`) and destination (`dest`) projects. If transfering from xls to kobo, duplicate src and destination url and token.
@@ -75,5 +75,4 @@ pip install openpyxl pandas requests xmltodict python-dateutil
 Demo walks through this process:
  - for initial data upload, create folder named attachments, with subfolder name being the asset uid of form in kobo. To associate media with a specific submission, create subfolders named _index value of the submission in the xlsx. For example, without initially having a uuid (in a case where data is imported from a different source), the file path for the media would be attachments/aMhhwTacmk9PLEQuv9etDS/2. Media within that folder must match the filename in xlsx form cell exactly.
 - if data already has uuids, create attachments folder with a subfolder asset id. Within asset id subfolder, create folders each named after uuid of a response. Media associated with each uuid should be within that folder.
-- If run.py is run with the attachments folder, media should save in kobo correctly. 
- 
+- If run.py is run with the attachments folder, media should save in kobo correctly.
