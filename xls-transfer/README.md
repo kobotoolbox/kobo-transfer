@@ -26,9 +26,9 @@ pip install openpyxl pandas requests xmltodict python-dateutil
 
 ## Setup
 
-1. Destination project must be deployed and have the same content as xlsx form. All questions should be in same order. 
+1. Destination project must be deployed and have the same content as xlsx form. 
 
-2. Clone a copy of this repo somewhere on your local machine
+2. Clone a copy of this repo somewhere on your local machine. Create virtual environment using command python3 -m venv .venv, and install requirements using command pip install -r xls-transfer/xls-import-requirements.txt
 
 3. Copy `sample-config.json` to `config.json` and add your configuration details
    for the source (`src`) and destination (`dest`) projects. If transfering from xls to kobo, duplicate src and destination url and token.
@@ -55,10 +55,9 @@ pip install openpyxl pandas requests xmltodict python-dateutil
 
 ## Limitations
 - If running -xt for initial xlsx data without uuid, submissions will be duplicated each time script is run. To avoid, after initial transfer, download data from kobo as xlsx and edit/reupload it. 
-
 <br>
-
 - for repeat groups, _parent_table needs to match name of sheet exactly
+- for repeat groups, the parent_table sheet needs to precede the repeat group sheet
 - exported kobo form should not include media URL column. Otherwise it will be treated as a question and response when imported.
 - for select_one and select_multiple question types, data msut be formatted to be a single column. 
 - script only supports exported xlsx data where groups are seperated by '/'
