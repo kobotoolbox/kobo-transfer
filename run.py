@@ -6,6 +6,7 @@ import sys
 import requests
 
 from helpers.config import Config
+from transfer.analysis import sync_analysis_data
 from transfer.media import get_media, del_media
 from transfer.xml import (
     get_src_submissions_xml,
@@ -72,6 +73,7 @@ def main(
     validate=True,
     sync=False,
     validation_statuses=False,
+    analysis_data=False,
     chunk_size=1000,
     config_file=None,
 ):
@@ -80,6 +82,11 @@ def main(
     if validation_statuses and not sync:
         print('✏️ Syncing validation statuses')
         sync_validation_statuses(config, chunk_size, limit)
+        sys.exit()
+
+    if analysis_data:
+        print('📶 Syncing analysis data')
+        sync_analysis_data(config, limit)
         sys.exit()
 
     config_src = config.src
@@ -209,6 +216,13 @@ if __name__ == '__main__':
         help='Sync src and dest validation statuses',
     )
     parser.add_argument(
+        '--analysis-data',
+        '-ad',
+        default=False,
+        action='store_true',
+        help='Sync src and dest analysis data (transcript, translations, analysis questions)',
+    )
+    parser.add_argument(
         '--chunk-size',
         '-cs',
         default=1000,
@@ -234,6 +248,7 @@ if __name__ == '__main__':
             validate=not args.no_validate,
             sync=args.sync,
             validation_statuses=args.validation_statuses,
+            analysis_data=args.analysis_data,
             chunk_size=args.chunk_size,
             config_file=args.config_file,
         )
