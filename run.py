@@ -77,7 +77,7 @@ def main(
 ):
     config = Config(config_file=config_file, validate=validate)
 
-    if validation_statuses:
+    if validation_statuses and not sync:
         print('✏️ Syncing validation statuses')
         sync_validation_statuses(config, chunk_size, limit)
         sys.exit()
@@ -128,6 +128,10 @@ def main(
                 print('📨 Transferring submission data')
                 first_run = False
             transfer(all_results, xml_url_src)
+
+        if validation_statuses:
+            print('✏️ Syncing validation statuses')
+            sync_validation_statuses(config, chunk_size, limit)
 
 
     if not sync:
