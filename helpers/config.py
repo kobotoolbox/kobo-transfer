@@ -72,6 +72,7 @@ class Config(metaclass=Singleton):
             'deployment_url': f'{asset_url}/deployment/',
             'xml_url': f'{asset_url}/data.xml',
             'data_url': f'{asset_url}/data',
+            'validation_statuses_url': f'{asset_url}/data/validation_statuses.json',
         }
 
     def _validate_config(self):
