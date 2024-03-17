@@ -33,7 +33,7 @@ pip install openpyxl pandas requests xmltodict python-dateutil
 3. Copy `sample-config.json` to `config.json` and add your configuration details
    for the source (`src`) and destination (`dest`) projects. If transfering from xls to kobo, duplicate src and destination url and token.
    
-### Notes for General XLSX Data Transfer
+### Notes for XLSX Data Transfer
 
 - for initial transfer (no uuids), _index column is required. If initial transfer includes repeat groups spanning multiple tabs, repeat group sheets must contain columns _index, _parent_table, _parent_index. 
 - to associate media with a specific response/submission for initial transfer, when there is no _uuid column, _index of submission can be used. Media for the submission can be saved in file path ./attachments/{asset_uid}/{_index}.
