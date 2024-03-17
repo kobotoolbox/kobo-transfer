@@ -131,26 +131,22 @@ def get_question_headers(headers):
         "_submission___version__",
         "_submission__tags",
     ]
-    recent_question = None
     for header in headers:
-        geopoint = is_geopoint_header(str(recent_question), header)
+        geopoint = is_geopoint_header(header)
         if geopoint or header in added_on_headers_during_export:
             continue
-        recent_question = header
         question_headers.append(header)
     return question_headers
 
 
-def is_geopoint_header(recent_question, col_name):
+def is_geopoint_header(col_name):
     """
     returns false if column header should be treated should be treated as a question and
     returns true if column header should be ignored since it is part of geopoint/geoline type
     used to filter out headers that follow pattern of _<question_name>_latitude etc.
     """
-    geopoint_patterns = (
-        r"_" + re.escape(recent_question) + r"_(latitude|longitude|altitude|precision)"
-    )
-    return re.match(geopoint_patterns, col_name) is not None
+    geopoint_patterns = r"_(latitude|longitude|altitude|precision)$"
+    return re.search(geopoint_patterns, col_name) is not None
 
 
 def create_group(group_names_arr, cell_value, parent_group=None):
@@ -166,14 +162,16 @@ def create_group(group_names_arr, cell_value, parent_group=None):
         parent_group = initial
     else:
         initial = parent_group
-
+    
     group_element = None
     for group in group_names_arr:
         if parent_group.tag == group:
             continue
         group_element = parent_group.find(".//" + group)
 
-        if group_element == None:
+        if group_element is None:
+            if is_geopoint_header(group):
+                return initial
             group_element = create_xml_element_and_tag(parent_group, group, None)
         if (
             group == group_names_arr[-1]
@@ -338,7 +336,7 @@ def general_xls_to_xml(excel_file_path, submission_data, warnings=False):
 
     root = add_prev_next(root)
     root.append(results)
-    # test_by_writing(root)
+    test_by_writing(root)
     workbook.close()
     return root
 
@@ -435,6 +433,10 @@ def create_repeat_group_xml_element(current_sheet_name, question_headers, header
     if index_of_sheet_group != 0:
         parent_of_sheet_group = group_names[index_of_sheet_group - 1]
 
+
+    um = ET.ElementTree(repeat_sheet_xml_element)
+    um.write("./what.xml")
+
     return repeat_sheet_xml_element, index_of_sheet_group, parent_of_sheet_group
 
 
@@ -444,9 +446,9 @@ def xml_from_repeat_sheets(submission_xml, workbook, submission_index):
     limitation: sheet needs to be ordered from parent —> child; the parent_table must precede child in xls sheet order
     """
     sheet_names = workbook.sheetnames
-    parent_indexes = []  # cleared every time its a new sheet.
+    parent_indexes = [] 
     for sheet_name in sheet_names[1:]:
-        new_indexes = []
+        new_indexes = []  #cleared every time its a new sheet.
         sheet = workbook[sheet_name]
         headers = [cell.value for cell in sheet[1]]
 
@@ -456,14 +458,19 @@ def xml_from_repeat_sheets(submission_xml, workbook, submission_index):
             question_headers, sheet_names, submission_xml
         )  # ensure all non-repeating group headers exist in submission_xml
 
+        
+        parent_is_first_sheet = False #all values of _parent_table are the same in a single sheet
+        if sheet.max_row >= 2:
+            row = next(sheet.iter_rows(min_row=2, max_row=2, values_only=True))
+            parent_table = row[parent_table_header]
+        
+        if parent_table == str(sheet_names[0]):
+                parent_is_first_sheet = True
+                parent_indexes = []
+
         for row in sheet.iter_rows(min_row=2, values_only=True):
             index = str(row[index_header])
             parent_index = str(row[parent_index_header])  # row's parent value
-            parent_table = str(row[parent_table_header])
-            parent_is_first_sheet = False
-
-            if parent_table == str(sheet_names[0]):
-                parent_is_first_sheet = True
 
             if parent_is_first_sheet:
                 if parent_index != submission_index:
@@ -479,12 +486,19 @@ def xml_from_repeat_sheets(submission_xml, workbook, submission_index):
                     index
                 )  # mantain relevant indexes for this submission for next sheet (where current sheet might be parent)
 
+            print("parent")
+            print(parent_indexes)
+            print("new)")
+            print(new_indexes)
+
+            um = ET.ElementTree(submission_xml)
+            um.write("./yo.xml")
             repeat_sheet_xml_element, index_of_sheet_group, parent_of_sheet_group = (
                 create_repeat_group_xml_element(
                     sheet_name, question_headers, headers, row
                 )
             )
-
+            
             if question_headers != []:
                 element_to_append_to = None
                 if (
