@@ -1,1 +1,3 @@
 - multiple non-repeating logical groups with different levels of nesting
+
+- NOTE: When a geopoint/geoline question is within a group, and downloaded as xlsx, the header doesn't show the group name. Only the _location, _precision column headers have the group name, and those are ignored.
