@@ -52,13 +52,13 @@ def main(
         submissions = parsed_xml.findall(f'results/{config_src["asset_uid"]}')
         next_ = parsed_xml.find('next').text
        
-        results = transfer_submissions(
+        """results = transfer_submissions(
             submissions,
             submission_edit_data,
             quiet=quiet,
             regenerate=regenerate,
         )
-        all_results += results
+        all_results += results"""
    
         if next_ != 'None' and next_ is not None:
             transfer(all_results, next_)
