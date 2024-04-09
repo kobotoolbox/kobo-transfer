@@ -104,15 +104,15 @@ class Config(metaclass=Singleton):
             if kc_res.status_code != 200:
                 invalid(f'⚠️ Invalid `kc_url` for `{loc}`.')
             kf_res = requests.get(
-                url=config['assets_url'],
+                url=config['asset_url'],
                 headers=config['headers'],
                 params=config['params'],
             )
             if kf_res.status_code != 200:
-                invalid(f'⚠️ Invalid `kf_url` for `{loc}`.')
-            assets = kf_res.json()['results']
-            asset_uids = [a['uid'] for a in assets]
-            if config['asset_uid'] not in asset_uids:
+                invalid(f'⚠️ Asset UID does not exist for `{loc}`.')
+            asset_details = kf_res.json()
+            if not asset_details['has_deployment']:
                 invalid(
-                    f"⚠️ Asset `{config['asset_uid']}` not present in `{loc}`."
+                    f"⚠️ Asset `{config['asset_uid']}` not deployed. "
+                    'Please deploy and try again.'
                 )
