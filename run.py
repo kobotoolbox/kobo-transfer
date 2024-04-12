@@ -31,7 +31,7 @@ def get_uuids(config_loc, params):
         uuids += [i['_uuid'] for i in data['results']]
         next_ = data['next']
         if next_ is not None:
-            get_uuids_rec(uuids, next_)
+            get_uuids_rec(uuids, next_, headers=headers)
 
     uuids = []
     get_uuids_rec(uuids=uuids, url=config_loc['data_url'], params=params, headers=config_loc['headers'])
@@ -74,7 +74,7 @@ def main(
     sync=False,
     validation_statuses=False,
     analysis_data=False,
-    chunk_size=1000,
+    chunk_size=100,
     config_file=None,
 ):
     config = Config(config_file=config_file, validate=validate)
@@ -225,7 +225,7 @@ if __name__ == '__main__':
     parser.add_argument(
         '--chunk-size',
         '-cs',
-        default=1000,
+        default=100,
         type=int,
         help='Number of submissions included in each batch for sync query filters.',
     )
