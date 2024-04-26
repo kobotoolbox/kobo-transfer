@@ -80,7 +80,7 @@ def main(
 
     def transfer(all_results, url=None):
         parsed_xml = get_src_submissions_xml(xml_url=url)
-        submissions = parsed_xml.findall(f'results/{config_src["asset_uid"]}')
+        submissions = parsed_xml.findall(f'results/')
         next_ = parsed_xml.find('next').text
         results = transfer_submissions(
             submissions,
