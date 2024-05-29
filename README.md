@@ -7,15 +7,15 @@ Transfer submissions between two identical projects.
 1. Ensure the destination project is deployed and has the same content as the
    source project.
 
-1. Clone a copy of this repo somewhere on your local machine:
+2. Clone a copy of this repo somewhere on your local machine:
 
 ```bash
 git clone https://github.com/kobotoolbox/kobo-transfer
 ```
 
-1. Install `pip` packages from `requirements.txt`. See detailed steps [here](#python-requirements).
+3. Install `pip` packages from `requirements.txt`. See detailed steps [here](#python-requirements).
 
-1. Copy `sample-config.json` to `config.json` and add your configuration details
+4. Copy `sample-config.json` to `config.json` and add your configuration details
    for the source (`src`) and destination (`dest`) projects. If both projects
    are located on the same Kobo instance, then just duplicate the URL and token
    values.
@@ -95,45 +95,53 @@ To ensure that the necessary Python packages are installed correctly, follow the
 ### Windows
 
 1. **Install Python and pip**
-   Make sure you have Python and pip installed. You can download Python from the [official website](https://www.python.org/downloads/), which includes pip by default.
+
+Make sure you have Python and pip installed. You can download Python from the [official website](https://www.python.org/downloads/), which includes pip by default.
 
 2. **Create a virtual environment**
-   Open the Command Prompt and navigate to the directory where your script is located. Then, run the following command to create a virtual environment:
-   ```sh
-   python -m venv venv
-   ```
+
+Open the Command Prompt and navigate to the directory where your script is located. Then, run the following command to create a virtual environment:
+```sh
+python -m venv venv
+```
 
 3. **Activate the virtual environment**
-   Activate the virtual environment with the following command:
-   ```sh
-   .\venv\Scripts\activate
-   ```
+   
+Activate the virtual environment with the following command:
+```sh
+.\venv\Scripts\activate
+```
 
 4. **Install the required packages**
-   With the virtual environment activated, install the required packages by running:
-   ```sh
-   pip install -r requirements.txt
-   ```
+
+With the virtual environment activated, install the required packages by running:
+```sh
+pip install -r requirements.txt
+```
 
 ### macOS/Linux
 
 1. **Install Python and pip**
-   Ensure you have Python and pip installed. Most macOS/Linux systems come with Python pre-installed. If not, you can install Python via a package manager (e.g., `brew` for macOS or `apt` for Ubuntu).
+
+Ensure you have Python and pip installed. Most macOS/Linux systems come with Python pre-installed. If not, you can install Python via a package manager (e.g., `brew` for macOS or `apt` for Ubuntu).
 
 2. **Create a virtual environment**
-   Open a terminal and navigate to the directory where your script is located. Then, run the following command to create a virtual environment:
-   ```sh
-   python3 -m venv venv
-   ```
+
+Open a terminal and navigate to the directory where your script is located. Then, run the following command to create a virtual environment:
+```sh
+python3 -m venv venv
+```
 
 3. **Activate the virtual environment**
-   Activate the virtual environment with the following command:
-   ```sh
-   source venv/bin/activate
-   ```
+
+Activate the virtual environment with the following command:
+```sh
+source venv/bin/activate
+```
 
 4. **Install the required packages**
-   With the virtual environment activated, install the required packages by running:
-   ```sh
-   pip install -r requirements.txt
-   ```
+
+With the virtual environment activated, install the required packages by running:
+```sh
+pip install -r requirements.txt
+```
