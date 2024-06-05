@@ -74,6 +74,7 @@ def main(
     validation_statuses=False,
     chunk_size=100,
     config_file=None,
+    skip_media=False,
 ):
     config = Config(config_file=config_file, validate=validate)
 
@@ -88,7 +89,7 @@ def main(
 
     def transfer(all_results, url=None):
         parsed_xml = get_src_submissions_xml(xml_url=url)
-        submissions = parsed_xml.findall(f'results/{config_src["asset_uid"]}')
+        submissions = parsed_xml.findall(f'results/')
         next_ = parsed_xml.find('next').text
         results = transfer_submissions(
             submissions,
@@ -120,9 +121,10 @@ def main(
             query = json.dumps({"_uuid": {"$in": chunked_uuids}})
             xml_url_src = config_src['xml_url'] + f'?limit={limit}&query={query}'
 
-            if first_run:
-                print('📸 Getting all submission media', end=' ', flush=True)
-            get_media(query=query)
+            if not skip_media:
+                if first_run:
+                    print('📸 Getting all submission media', end=' ', flush=True)
+                get_media(query=query)
 
             if first_run:
                 print('📨 Transferring submission data')
@@ -135,13 +137,14 @@ def main(
 
 
     if not sync:
-        print('📸 Getting all submission media', end=' ', flush=True)
-        get_media()
+        if not skip_media:
+            print('📸 Getting all submission media', end=' ', flush=True)
+            get_media()
 
         print('📨 Transferring submission data')
         transfer(all_results, xml_url_src)
 
-    if not keep_media:
+    if not keep_media and not skip_media:
         del_media()
 
     print('✨ Done')
@@ -155,7 +158,7 @@ if __name__ == '__main__':
     parser.add_argument(
         '--limit',
         '-l',
-        default=30000,
+        default=5000,
         type=int,
         help='Number of submissions included in each batch for download and upload.',
     )
@@ -211,9 +214,16 @@ if __name__ == '__main__':
     parser.add_argument(
         '--chunk-size',
         '-cs',
-        default=100,
+        default=20,
         type=int,
         help='Number of submissions included in each batch for sync query filters.',
+    )
+    parser.add_argument(
+        '--skip-media',
+        '-sm',
+        default=False,
+        action='store_true',
+        help='Skip media downloads',
     )
     parser.add_argument(
         '--quiet',
@@ -236,6 +246,7 @@ if __name__ == '__main__':
             validation_statuses=args.validation_statuses,
             chunk_size=args.chunk_size,
             config_file=args.config_file,
+            skip_media=args.skip_media,
         )
     except KeyboardInterrupt:
         print('🛑 Stopping run')

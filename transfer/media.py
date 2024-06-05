@@ -66,11 +66,9 @@ def download_all_media(data_url, stats):
             os.makedirs(sub_dir)
 
         for attachment in attachments:
-            download_url = attachment['filename']
-            if Config.REWRITE_DOWNLOAD_URL:
-                download_url = rewrite_download_url(
-                    download_url, config['kc_url']
-                )
+            # Need to strip the query param otherwise it doesn't grab
+            # the media content
+            download_url = attachment['download_url'].strip('?format=json')
             filename = get_filename(attachment['filename'])
 
             file_path = os.path.join(sub_dir, filename)
