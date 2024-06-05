@@ -51,9 +51,9 @@ submissions will be transferred. Since the validation statuses are metadata to
 the submissions, this requires an additional step to the standard process.
 
 ```bash
-./run.py --sync --validation-status
+python3 run.py --sync --validation-status
 # or
-./run.py --validation-status
+python3 run.py --validation-status
 ```
 
 Use the `--analysis-data` to transfer analysis data, which may include
@@ -63,9 +63,9 @@ transferred. It can be run with the `--sync` option (and other compatible
 options) or on its own.
 
 ```bash
-./run.py --sync --analysis-data
+python3 run.py --sync --analysis-data
 # or
-./run.py --analysis-data
+python3 run.py --analysis-data
 ```
 
 If submissions contain media attachments, all media will be downloaded to a
@@ -219,5 +219,5 @@ With the virtual environment activated, install the required packages by
 running:
 
 ```sh
-pip install -r requirements.txt
+pip3 install -r requirements.txt
 ```
