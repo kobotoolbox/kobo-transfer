@@ -46,7 +46,7 @@ the `dest` project and therefore consume unnecessary storage in your account.
 Use the `--validation-status` option to sync the validation statuses from `src`
 submissions to the `dest`. If used in combination with the `--sync` option, it
 will first transfer missing submissions and then sync the statuses. If used
-alone, it will only sync the status and then end script opteration -- no
+alone, it will only sync the status and then end script operation -- no
 submissions will be transferred. Since the validation statuses are metadata to
 the submissions, this requires an additional step to the standard process.
 

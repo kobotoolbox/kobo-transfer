@@ -19,11 +19,7 @@ from transfer.validation_status import sync_validation_statuses
 def get_uuids(config_loc, params):
     def get_uuids_rec(uuids=[], url=None, params=None, headers=None):
         if 'fields' not in url:
-            res = requests.get(
-                url=url,
-                params=params,
-                headers=headers
-        )
+            res = requests.get(url=url, params=params, headers=headers)
         else:
             res = requests.get(url=url, headers=headers)
         data = res.json()
@@ -33,13 +29,18 @@ def get_uuids(config_loc, params):
             get_uuids_rec(uuids, next_, headers=headers)
 
     uuids = []
-    get_uuids_rec(uuids=uuids, url=config_loc['data_url'], params=params, headers=config_loc['headers'])
+    get_uuids_rec(
+        uuids=uuids,
+        url=config_loc['data_url'],
+        params=params,
+        headers=config_loc['headers'],
+    )
     return uuids
 
 
 def chunker(seq, size):
     for i in range(0, len(seq), size):
-        yield seq[i:i + size]
+        yield seq[i : i + size]
 
 
 def get_params(uuids=[], limit=10000, fields=[]):
@@ -119,7 +120,9 @@ def main(
         first_run = True
         for chunked_uuids in chunker(diff_uuids, chunk_size):
             query = json.dumps({"_uuid": {"$in": chunked_uuids}})
-            xml_url_src = config_src['xml_url'] + f'?limit={limit}&query={query}'
+            xml_url_src = (
+                config_src['xml_url'] + f'?limit={limit}&query={query}'
+            )
 
             if not skip_media:
                 if first_run:
@@ -134,7 +137,6 @@ def main(
         if validation_statuses:
             print('✏️ Syncing validation statuses')
             sync_validation_statuses(config, chunk_size, limit)
-
 
     if not sync:
         if not skip_media:
