@@ -86,7 +86,7 @@ def main(
         sync_validation_statuses(config, chunk_size, limit)
         sys.exit()
 
-    if analysis_data:
+    if analysis_data and not sync:
         print('📶 Syncing analysis data')
         sync_analysis_data(config, limit)
         sys.exit()
@@ -144,6 +144,10 @@ def main(
         if validation_statuses:
             print('✏️ Syncing validation statuses')
             sync_validation_statuses(config, chunk_size, limit)
+
+        if analysis_data:
+            print('📶 Syncing analysis data')
+            sync_analysis_data(config, limit)
 
     if not sync:
         if not skip_media:
