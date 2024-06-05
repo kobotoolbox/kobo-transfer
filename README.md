@@ -26,8 +26,8 @@ git clone https://github.com/kobotoolbox/kobo-transfer
 ```bash
 python3 run.py \
   [--config-file/-c <file path>] [--sync/-s] [--no-validate/-N] \
-  [--validation-status/-vs] [--keep-media/-k] [--limit/-l <limit>] \
-  [--chunk-size/-cs <size>] [--regenerate-uuids/-R] \
+  [--validation-status/-vs] [--analysis-data/-ad] [--keep-media/-k] \
+  [--limit/-l <limit>] [--chunk-size/-cs <size>] [--regenerate-uuids/-R] \
   [--last-failed/-lf] [--quiet/-q]
 ```
 
@@ -49,6 +49,24 @@ will first transfer missing submissions and then sync the statuses. If used
 alone, it will only sync the status and then end script operation -- no
 submissions will be transferred. Since the validation statuses are metadata to
 the submissions, this requires an additional step to the standard process.
+
+```bash
+./run.py --sync --validation-status
+# or
+./run.py --validation-status
+```
+
+Use the `--analysis-data` to transfer analysis data, which may include
+transcripts, translations, analysis questions. As with the `--validation-status`
+option, this is an additional step needed once the submissions have already been
+transferred. It can be run with the `--sync` option (and other compatible
+options) or on its own.
+
+```bash
+./run.py --sync --analysis-data
+# or
+./run.py --analysis-data
+```
 
 If submissions contain media attachments, all media will be downloaded to a
 local `attachments/` directory before the transfer between projects begin.
@@ -75,11 +93,14 @@ python3 run.py --config-file config-2.json
 By default, the configuration file will be validated before the transfer is
 attempted. Pass the `--no-validate` flag to skip this step.
 
-Example usage with syncing submissions and validation statuses:
+Example usage with syncing submissions, validation statuses and analysis data in
+one go, noting that this will be three different phases of the transfer that
+will run sequentially:
 
 ```bash
 python3 run.py --config-file config-project-abc.json --sync \
-  --keep-media --no-validate --validation-status
+  --validation-status --analysis-data \
+  --keep-media --no-validate
 ```
 
 ## Media attachments
