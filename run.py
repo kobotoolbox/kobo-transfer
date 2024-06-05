@@ -13,16 +13,13 @@ from transfer.xml import (
     print_stats,
     transfer_submissions,
 )
+from transfer.validation_status import sync_validation_statuses
 
 
 def get_uuids(config_loc, params):
     def get_uuids_rec(uuids=[], url=None, params=None, headers=None):
         if 'fields' not in url:
-            res = requests.get(
-                url=url,
-                params=params,
-                headers=headers
-        )
+            res = requests.get(url=url, params=params, headers=headers)
         else:
             res = requests.get(url=url, headers=headers)
         data = res.json()
@@ -32,13 +29,18 @@ def get_uuids(config_loc, params):
             get_uuids_rec(uuids, next_, headers=headers)
 
     uuids = []
-    get_uuids_rec(uuids=uuids, url=config_loc['data_url'], params=params, headers=config_loc['headers'])
+    get_uuids_rec(
+        uuids=uuids,
+        url=config_loc['data_url'],
+        params=params,
+        headers=config_loc['headers'],
+    )
     return uuids
 
 
 def chunker(seq, size):
     for i in range(0, len(seq), size):
-        yield seq[i:i + size]
+        yield seq[i : i + size]
 
 
 def get_params(uuids=[], limit=10000, fields=[]):
@@ -70,11 +72,18 @@ def main(
     quiet=False,
     validate=True,
     sync=False,
+    validation_statuses=False,
     chunk_size=100,
     config_file=None,
     skip_media=False,
 ):
     config = Config(config_file=config_file, validate=validate)
+
+    if validation_statuses and not sync:
+        print('✏️ Syncing validation statuses')
+        sync_validation_statuses(config, chunk_size, limit)
+        sys.exit()
+
     config_src = config.src
     all_results = []
     submission_edit_data = get_submission_edit_data()
@@ -111,7 +120,9 @@ def main(
         first_run = True
         for chunked_uuids in chunker(diff_uuids, chunk_size):
             query = json.dumps({"_uuid": {"$in": chunked_uuids}})
-            xml_url_src = config_src['xml_url'] + f'?limit={limit}&query={query}'
+            xml_url_src = (
+                config_src['xml_url'] + f'?limit={limit}&query={query}'
+            )
 
             if not skip_media:
                 if first_run:
@@ -123,6 +134,9 @@ def main(
                 first_run = False
             transfer(all_results, xml_url_src)
 
+        if validation_statuses:
+            print('✏️ Syncing validation statuses')
+            sync_validation_statuses(config, chunk_size, limit)
 
     if not sync:
         if not skip_media:
@@ -193,6 +207,13 @@ if __name__ == '__main__':
         help='Sync src and dest project data',
     )
     parser.add_argument(
+        '--validation-statuses',
+        '-vs',
+        default=False,
+        action='store_true',
+        help='Sync src and dest validation statuses',
+    )
+    parser.add_argument(
         '--chunk-size',
         '-cs',
         default=20,
@@ -224,6 +245,7 @@ if __name__ == '__main__':
             quiet=args.quiet,
             validate=not args.no_validate,
             sync=args.sync,
+            validation_statuses=args.validation_statuses,
             chunk_size=args.chunk_size,
             config_file=args.config_file,
             skip_media=args.skip_media,

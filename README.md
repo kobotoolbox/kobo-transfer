@@ -26,8 +26,9 @@ git clone https://github.com/kobotoolbox/kobo-transfer
 ```bash
 python3 run.py \
   [--config-file/-c <file path>] [--sync/-s] [--no-validate/-N] \
-  [--keep-media/-k] [--limit/-l <limit>] [--chunk-size/-cs <size>] \
-  [--regenerate-uuids/-R] [--last-failed/-lf] [--quiet/-q]
+  [--validation-status/-vs] [--keep-media/-k] [--limit/-l <limit>] \
+  [--chunk-size/-cs <size>] [--regenerate-uuids/-R] \
+  [--last-failed/-lf] [--quiet/-q]
 ```
 
 The original UUID for each submission is maintained across the transfer,
@@ -41,6 +42,13 @@ transfer. This is useful if you are phasing from one server to the other and
 there is still data being collected at the `src`. Without using `--sync` in this
 case, if the submissions contain media attachments, they will be duplicated at
 the `dest` project and therefore consume unnecessary storage in your account.
+
+Use the `--validation-status` option to sync the validation statuses from `src`
+submissions to the `dest`. If used in combination with the `--sync` option, it
+will first transfer missing submissions and then sync the statuses. If used
+alone, it will only sync the status and then end script operation -- no
+submissions will be transferred. Since the validation statuses are metadata to
+the submissions, this requires an additional step to the standard process.
 
 If submissions contain media attachments, all media will be downloaded to a
 local `attachments/` directory before the transfer between projects begin.
@@ -67,11 +75,11 @@ python3 run.py --config-file config-2.json
 By default, the configuration file will be validated before the transfer is
 attempted. Pass the `--no-validate` flag to skip this step.
 
-Example usage:
+Example usage with syncing submissions and validation statuses:
 
 ```bash
 python3 run.py --config-file config-project-abc.json --sync \
-  --keep-media --no-validate
+  --keep-media --no-validate --validation-status
 ```
 
 ## Media attachments

@@ -42,14 +42,12 @@ def get_xml_value_media_mapping(values):
     as it's sent. We need this to link the two together again for when filenames
     are stripped of special characters.
     '''
-    return {get_valid_filename(v):v for v in values}
+    return {get_valid_filename(v): v for v in values}
 
 
 def get_src_submissions_xml(xml_url):
     config = Config().src
-    res = requests.get(
-        url=xml_url, headers=config['headers']
-    )
+    res = requests.get(url=xml_url, headers=config['headers'])
     if not res.status_code == 200:
         raise Exception('Something went wrong')
     return ET.fromstring(res.text)
@@ -132,7 +130,9 @@ def transfer_submissions(all_submissions_xml, asset_data, quiet, regenerate):
 
         if regenerate or not original_uuid:
             _uuid, formatted_uuid = generate_new_instance_id()
-            update_element_value(submission_xml, 'meta/instanceID', formatted_uuid)
+            update_element_value(
+                submission_xml, 'meta/instanceID', formatted_uuid
+            )
         else:
             _uuid = original_uuid
 
