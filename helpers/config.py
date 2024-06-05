@@ -74,7 +74,7 @@ class Config(metaclass=Singleton):
             'xml_url': f'{asset_url}/data.xml',
             'data_url': f'{asset_url}/data',
             'validation_statuses_url': f'{asset_url}/data/validation_statuses.json',
-            'advanced_submission_url': f"{data['kf_url']}/advanced_submission_post/{data['asset_uid']}"
+            'advanced_submission_url': f"{data['kf_url']}/advanced_submission_post/{data['asset_uid']}",
         }
 
     def _validate_config(self):
