@@ -20,11 +20,7 @@ from transfer.validation_status import sync_validation_statuses
 def get_uuids(config_loc, params):
     def get_uuids_rec(uuids=[], url=None, params=None, headers=None):
         if 'fields' not in url:
-            res = requests.get(
-                url=url,
-                params=params,
-                headers=headers
-        )
+            res = requests.get(url=url, params=params, headers=headers)
         else:
             res = requests.get(url=url, headers=headers)
         data = res.json()
@@ -34,13 +30,18 @@ def get_uuids(config_loc, params):
             get_uuids_rec(uuids, next_, headers=headers)
 
     uuids = []
-    get_uuids_rec(uuids=uuids, url=config_loc['data_url'], params=params, headers=config_loc['headers'])
+    get_uuids_rec(
+        uuids=uuids,
+        url=config_loc['data_url'],
+        params=params,
+        headers=config_loc['headers'],
+    )
     return uuids
 
 
 def chunker(seq, size):
     for i in range(0, len(seq), size):
-        yield seq[i:i + size]
+        yield seq[i : i + size]
 
 
 def get_params(uuids=[], limit=10000, fields=[]):
@@ -76,6 +77,7 @@ def main(
     analysis_data=False,
     chunk_size=100,
     config_file=None,
+    skip_media=False,
 ):
     config = Config(config_file=config_file, validate=validate)
 
@@ -95,7 +97,7 @@ def main(
 
     def transfer(all_results, url=None):
         parsed_xml = get_src_submissions_xml(xml_url=url)
-        submissions = parsed_xml.findall(f'results/{config_src["asset_uid"]}')
+        submissions = parsed_xml.findall(f'results/')
         next_ = parsed_xml.find('next').text
         results = transfer_submissions(
             submissions,
@@ -125,11 +127,14 @@ def main(
         first_run = True
         for chunked_uuids in chunker(diff_uuids, chunk_size):
             query = json.dumps({"_uuid": {"$in": chunked_uuids}})
-            xml_url_src = config_src['xml_url'] + f'?limit={limit}&query={query}'
+            xml_url_src = (
+                config_src['xml_url'] + f'?limit={limit}&query={query}'
+            )
 
-            if first_run:
-                print('📸 Getting all submission media', end=' ', flush=True)
-            get_media(query=query)
+            if not skip_media:
+                if first_run:
+                    print('📸 Getting all submission media', end=' ', flush=True)
+                get_media(query=query)
 
             if first_run:
                 print('📨 Transferring submission data')
@@ -140,15 +145,15 @@ def main(
             print('✏️ Syncing validation statuses')
             sync_validation_statuses(config, chunk_size, limit)
 
-
     if not sync:
-        print('📸 Getting all submission media', end=' ', flush=True)
-        get_media()
+        if not skip_media:
+            print('📸 Getting all submission media', end=' ', flush=True)
+            get_media()
 
         print('📨 Transferring submission data')
         transfer(all_results, xml_url_src)
 
-    if not keep_media:
+    if not keep_media and not skip_media:
         del_media()
 
     print('✨ Done')
@@ -162,7 +167,7 @@ if __name__ == '__main__':
     parser.add_argument(
         '--limit',
         '-l',
-        default=30000,
+        default=5000,
         type=int,
         help='Number of submissions included in each batch for download and upload.',
     )
@@ -225,9 +230,16 @@ if __name__ == '__main__':
     parser.add_argument(
         '--chunk-size',
         '-cs',
-        default=100,
+        default=20,
         type=int,
         help='Number of submissions included in each batch for sync query filters.',
+    )
+    parser.add_argument(
+        '--skip-media',
+        '-sm',
+        default=False,
+        action='store_true',
+        help='Skip media downloads',
     )
     parser.add_argument(
         '--quiet',
@@ -251,6 +263,7 @@ if __name__ == '__main__':
             analysis_data=args.analysis_data,
             chunk_size=args.chunk_size,
             config_file=args.config_file,
+            skip_media=args.skip_media,
         )
     except KeyboardInterrupt:
         print('🛑 Stopping run')

@@ -7,13 +7,16 @@ Transfer submissions between two identical projects.
 1. Ensure the destination project is deployed and has the same content as the
    source project.
 
-1. Clone a copy of this repo somewhere on your local machine:
+2. Clone a copy of this repo somewhere on your local machine:
 
 ```bash
 git clone https://github.com/kobotoolbox/kobo-transfer
 ```
 
-1. Copy `sample-config.json` to `config.json` and add your configuration details
+3. Install `pip` packages from `requirements.txt`. See detailed steps
+   [here](#python-requirements).
+
+4. Copy `sample-config.json` to `config.json` and add your configuration details
    for the source (`src`) and destination (`dest`) projects. If both projects
    are located on the same Kobo instance, then just duplicate the URL and token
    values.
@@ -22,8 +25,10 @@ git clone https://github.com/kobotoolbox/kobo-transfer
 
 ```bash
 python3 run.py \
-  [--config-file/-c] [--limit/-l] [--last-failed/-lf] \
-  [--keep-media/-k] [--regenerate-uuids/-R] [--no-validate/-N] [--quiet/-q]
+  [--config-file/-c <file path>] [--sync/-s] [--no-validate/-N] \
+  [--validation-status/-vs] [--keep-media/-k] [--limit/-l <limit>] \
+  [--chunk-size/-cs <size>] [--regenerate-uuids/-R] \
+  [--last-failed/-lf] [--quiet/-q]
 ```
 
 The original UUID for each submission is maintained across the transfer,
@@ -31,6 +36,19 @@ allowing for duplicate submissions to be rejected at the destination project if
 the script is run multiple times. If this behaviour is not desired, pass the
 `--regenerate-uuids` flag to create new UUIDs for each submission. This may be
 necessary when transferring submissions to a project located on the same server.
+
+Use the `--sync` option to keep the two projects in sync after an initial
+transfer. This is useful if you are phasing from one server to the other and
+there is still data being collected at the `src`. Without using `--sync` in this
+case, if the submissions contain media attachments, they will be duplicated at
+the `dest` project and therefore consume unnecessary storage in your account.
+
+Use the `--validation-status` option to sync the validation statuses from `src`
+submissions to the `dest`. If used in combination with the `--sync` option, it
+will first transfer missing submissions and then sync the statuses. If used
+alone, it will only sync the status and then end script operation -- no
+submissions will be transferred. Since the validation statuses are metadata to
+the submissions, this requires an additional step to the standard process.
 
 If submissions contain media attachments, all media will be downloaded to a
 local `attachments/` directory before the transfer between projects begin.
@@ -57,6 +75,13 @@ python3 run.py --config-file config-2.json
 By default, the configuration file will be validated before the transfer is
 attempted. Pass the `--no-validate` flag to skip this step.
 
+Example usage with syncing submissions and validation statuses:
+
+```bash
+python3 run.py --config-file config-project-abc.json --sync \
+  --keep-media --no-validate --validation-status
+```
+
 ## Media attachments
 
 Media attachments are written to the local `attachments/` directory and follow
@@ -80,8 +105,98 @@ the tree structure of:
 
 ## Limitations
 
-- Although submissions will not be duplicated across multiple runs of the
-  script, if the submissions contain attachment files, the files are duplicated
-  on the server.
+- Although submissions will generally not be duplicated across multiple runs of
+  the script, if the submissions contain attachment files, they are duplicated
+  on the server unless the `--sync` option is used.
 - The script does not check if the source and destination projects are identical
   and will transfer submission data regardless.
+- The script does not account for multiple versions that the form may have had.
+  It naively uses the latest version of the `dest` form for the submissions'
+  `__version__` attribute.
+- If the `dest` form is updated and redeployed, it will have a new version UID.
+  If the script is run again, this will result in duplicates at the `dest`
+  because the submissions contain the new `__version__` value, therefore are no
+  longer unique, and therefore won't be rejected from the `dest` project.
+- Due to a known KoboToolbox issue, projects may contain submissions with
+  duplicate submission UUIDs. Some of these submissions may be full duplicates
+  of themselves, while others are unique submissions but contain a duplicate
+  UUID value. If an initial sync between `src` and `dest` has been done, only
+  unique submissions will be transferred (or accepted by the `dest` project). If
+  more submissions are collected at the `src` after this point and they contain
+  duplicate UUIDs from the previous sync (the UUID already exists at the
+  `dest`), those submissions will not be transferred.
+
+## Python requirements
+
+To ensure that the necessary Python packages are installed correctly, follow the
+steps below to set up a virtual environment and install the packages listed in
+the `requirements.txt` file. These instructions cover both Windows and
+macOS/Linux systems.
+
+### Windows
+
+1. **Install Python and pip**
+
+Make sure you have Python and pip installed. You can download Python from the
+[official website](https://www.python.org/downloads/), which includes pip by
+default.
+
+2. **Create a virtual environment**
+
+Open the Command Prompt and navigate to the directory where your script is
+located. Then, run the following command to create a virtual environment:
+
+```sh
+python -m venv venv
+```
+
+3. **Activate the virtual environment**
+
+Activate the virtual environment with the following command:
+
+```sh
+.\venv\Scripts\activate
+```
+
+4. **Install the required packages**
+
+With the virtual environment activated, install the required packages by
+running:
+
+```sh
+pip install -r requirements.txt
+```
+
+### macOS/Linux
+
+1. **Install Python and pip**
+
+Ensure you have Python and pip installed. Most macOS/Linux systems come with
+Python pre-installed. If not, you can install Python via a package manager
+(e.g., `brew` for macOS or `apt` for Ubuntu).
+
+2. **Create a virtual environment**
+
+Open a terminal and navigate to the directory where your script is located.
+Then, run the following command to create a virtual environment:
+
+```sh
+python3 -m venv venv
+```
+
+3. **Activate the virtual environment**
+
+Activate the virtual environment with the following command:
+
+```sh
+source venv/bin/activate
+```
+
+4. **Install the required packages**
+
+With the virtual environment activated, install the required packages by
+running:
+
+```sh
+pip install -r requirements.txt
+```
