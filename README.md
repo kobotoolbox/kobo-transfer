@@ -21,6 +21,16 @@ git clone https://github.com/kobotoolbox/kobo-transfer
    are located on the same Kobo instance, then just duplicate the URL and token
    values.
 
+**Note:** Kobo offers two public servers, the Global and EU servers. For each of
+these, the config URLs are the following:
+
+- EU:
+  - `kc_url`: https://kc-eu.kobotoolbox.org
+  - `kf_url`: https://eu.kobotoolbox.org
+- Global:
+  - `kc_url`: https://kc.kobotoolbox.org
+  - `kf_url`: https://kf.kobotoolbox.org
+
 ## Usage
 
 ```bash
