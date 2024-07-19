@@ -69,6 +69,7 @@ def get_diff_uuids(config):
 def main(
     limit,
     asset=False,
+    src_asset_uid=None,
     last_failed=False,
     keep_media=False,
     regenerate=False,
@@ -81,7 +82,13 @@ def main(
     config_file=None,
     skip_media=False,
 ):
+    if src_asset_uid:
+        validate = False
+    
     config = Config(config_file=config_file, validate=validate, asset=asset)
+
+    if src_asset_uid:
+        config.update_config(loc='src', new_data={'asset_uid': src_asset_uid})
 
     if asset:
         print('📋 Transferring asset, versions and form media')
@@ -193,6 +200,13 @@ if __name__ == '__main__':
         help='Transfer asset, versions and form media.',
     )
     parser.add_argument(
+        '--src-asset-uid',
+        '-sau',
+        default=None,
+        type=str,
+        help='Override asset_uid value in config file.',
+    )
+    parser.add_argument(
         '--last-failed',
         '-lf',
         default=False,
@@ -275,6 +289,7 @@ if __name__ == '__main__':
         main(
             limit=args.limit,
             asset=args.asset,
+            src_asset_uid=args.src_asset_uid,
             last_failed=args.last_failed,
             regenerate=args.regenerate_uuids,
             keep_media=args.keep_media,

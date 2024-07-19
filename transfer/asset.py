@@ -64,6 +64,10 @@ def deploy_all_versions(config_src, config_dest, deployed_versions):
 
 
 def transfer_asset_media(config_src, config_dest, files):
+
+    if not files:
+        return
+    
     dest_headers = {
         **config_dest['headers'],
         'Content-Type': 'application/x-www-form-urlencoded',

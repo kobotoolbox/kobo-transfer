@@ -39,7 +39,7 @@ class Config(metaclass=Singleton):
         setattr(
             self,
             loc,
-            self._append_additional_config_data({**data['dest'], **new_data}),
+            self._append_additional_config_data({**data[loc], **new_data}),
         )
 
     @property
