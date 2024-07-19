@@ -18,8 +18,9 @@ class Config(metaclass=Singleton):
     ATTACHMENTS_DIR = 'attachments'
     REWRITE_DOWNLOAD_URL = True
 
-    def __init__(self, config_file=None, validate=True):
+    def __init__(self, config_file=None, validate=True, asset=False):
         self.config_file = config_file or self.DEFAULT_CONFIG_LOCATION
+        self.dest_without_asset_uid = asset
         if validate:
             self._validate_config()
         self.last_failed_uuids = []
@@ -32,6 +33,12 @@ class Config(metaclass=Singleton):
         src = self._append_additional_config_data(data['src'])
         dest = self._append_additional_config_data(data['dest'])
         return src, dest
+    
+    def update_config(self, loc, new_data={}):
+        data = self._read_config()
+        setattr(self, loc, self._append_additional_config_data(
+            {**data['dest'], **new_data}
+        ))
 
     @property
     def data_query(self):
@@ -73,6 +80,7 @@ class Config(metaclass=Singleton):
             'deployment_url': f'{asset_url}/deployment/',
             'xml_url': f'{asset_url}/data.xml',
             'data_url': f'{asset_url}/data',
+            'files_url': f'{asset_url}/files',
             'validation_statuses_url': f'{asset_url}/data/validation_statuses.json',
             'advanced_submission_url': f"{data['kf_url']}/advanced_submission_post/{data['asset_uid']}",
         }
@@ -106,16 +114,18 @@ class Config(metaclass=Singleton):
             )
             if kc_res.status_code != 200:
                 invalid(f'⚠️ Invalid `kc_url` for `{loc}`.')
-            kf_res = requests.get(
-                url=config['asset_url'],
-                headers=config['headers'],
-                params=config['params'],
-            )
-            if kf_res.status_code != 200:
-                invalid(f'⚠️ Asset UID does not exist for `{loc}`.')
-            asset_details = kf_res.json()
-            if not asset_details['has_deployment']:
-                invalid(
-                    f"⚠️ Asset `{config['asset_uid']}` not deployed. "
-                    'Please deploy and try again.'
+            
+            if not (loc == 'dest' and self.dest_without_asset_uid):
+                kf_res = requests.get(
+                    url=config['asset_url'],
+                    headers=config['headers'],
+                    params=config['params'],
                 )
+                if kf_res.status_code != 200:
+                    invalid(f'⚠️ Asset UID does not exist for `{loc}`.')
+                asset_details = kf_res.json()
+                if not asset_details['has_deployment']:
+                    invalid(
+                        f"⚠️ Asset `{config['asset_uid']}` not deployed. "
+                        'Please deploy and try again.'
+                    )
