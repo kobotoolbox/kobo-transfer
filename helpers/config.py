@@ -33,12 +33,14 @@ class Config(metaclass=Singleton):
         src = self._append_additional_config_data(data['src'])
         dest = self._append_additional_config_data(data['dest'])
         return src, dest
-    
+
     def update_config(self, loc, new_data={}):
         data = self._read_config()
-        setattr(self, loc, self._append_additional_config_data(
-            {**data['dest'], **new_data}
-        ))
+        setattr(
+            self,
+            loc,
+            self._append_additional_config_data({**data['dest'], **new_data}),
+        )
 
     @property
     def data_query(self):
@@ -114,7 +116,7 @@ class Config(metaclass=Singleton):
             )
             if kc_res.status_code != 200:
                 invalid(f'⚠️ Invalid `kc_url` for `{loc}`.')
-            
+
             if not (loc == 'dest' and self.dest_without_asset_uid):
                 kf_res = requests.get(
                     url=config['asset_url'],
