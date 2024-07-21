@@ -1,6 +1,6 @@
 # kobo-transfer
 
-Transfer assets and submissions between two identical projects.
+Transfer assets and submissions between two projects.
 
 ## Setup
 
