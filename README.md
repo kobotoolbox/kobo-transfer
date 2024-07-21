@@ -1,25 +1,38 @@
 # kobo-transfer
 
-Transfer submissions between two identical projects.
+Transfer assets and submissions between two identical projects.
 
 ## Setup
 
-1. Ensure the destination project is deployed and has the same content as the
-   source project.
-
-2. Clone a copy of this repo somewhere on your local machine:
+1. Clone a copy of this repo somewhere on your local machine:
 
 ```bash
 git clone https://github.com/kobotoolbox/kobo-transfer
 ```
 
-3. Install `pip` packages from `requirements.txt`. See detailed steps
+2. Install `pip` packages from `requirements.txt`. See detailed steps
    [here](#python-requirements).
 
-4. Copy `sample-config.json` to `config.json` and add your configuration details
+3. Copy `sample-config.json` to `config.json` and add your configuration details
    for the source (`src`) and destination (`dest`) projects. If both projects
-   are located on the same Kobo instance, then just duplicate the URL and token
+   are located on the same server, then just duplicate the URLs and token
    values.
+
+4. If only syncing submissions, ensure the destination project is deployed and
+   has the same content as the source project.
+
+5. If transferring assets _and_ submissions for the first time, leave the
+   `dest.asset_uid` field empty in the config file:
+
+```
+{
+  ...
+  "dest": {
+    ...
+    "asset_uid": ""
+  }
+}
+```
 
 **Note:** Kobo offers two public servers, the Global and EU servers. For each of
 these, the config URLs are the following:
@@ -35,10 +48,20 @@ these, the config URLs are the following:
 
 ```bash
 python3 run.py \
-  [--config-file/-c <file path>] [--sync/-s] [--no-validate/-N] \
+  [--config-file/-c <file path>] [--asset/-a] [--sync/-s] [--no-validate/-N] \
   [--validation-status/-vs] [--analysis-data/-ad] [--keep-media/-k] \
-  [--limit/-l <limit>] [--chunk-size/-cs <size>] [--regenerate-uuids/-R] \
-  [--last-failed/-lf] [--quiet/-q]
+  [--src-asset-uid/-sau <uid>] [--limit/-l <limit>] [--chunk-size/-cs <size>] \
+  [--regenerate-uuids/-R] [--last-failed/-lf] [--quiet/-q]
+```
+
+To transfer the asset, its form media and versions from the `src` to `dest`
+servers, use the `--asset` flag, in addition to any other flags described below.
+Once the asset has finished transferring, the submissions will be transferred
+next. Note that each time this flag is used, a _new_ asset is created on the
+`dest` side.
+
+```bash
+python3 run.py --asset
 ```
 
 The original UUID for each submission is maintained across the transfer,
@@ -111,6 +134,26 @@ will run sequentially:
 python3 run.py --config-file config-project-abc.json --sync \
   --validation-status --analysis-data \
   --keep-media --no-validate
+
+# additionally let's transfer the asset itself with the `--asset` flag
+python3 run.py --config-file config-project-abc.json --sync \
+  --asset --validation-status --analysis-data \
+  --keep-media --no-validate
+```
+
+Use the `--src-asset-uid` to pass an asset UID through the args rather than in
+the config file. This allows for iterating through a list of assets UIDs and
+transfer them in bulk. Example usage of transferring all assets and submission
+data from one user account to another (note that a config file is still required
+for configuring URLs and tokens):
+
+```bash
+TOKEN=<your src token>
+# note this requires `jq` to be installed
+curl -s 'https://kf.kobotoolbox.org/api/v2/assets.json' \
+  -H "Authorization: Token $TOKEN" | \
+  jq '.results[] | select(.asset_type == "survey" and .has_deployment == true) | .uid' | \
+  xargs -I {} python3 run.py --src-asset-uid "{}" --asset --sync -c <config file>
 ```
 
 ## Media attachments
@@ -142,12 +185,20 @@ the tree structure of:
 - The script does not check if the source and destination projects are identical
   and will transfer submission data regardless.
 - The script does not account for multiple versions that the form may have had.
-  It naively uses the latest version of the `dest` form for the submissions'
-  `__version__` attribute.
+  Rather use the `--asset` flag to fully transfer the `src` project to the
+  `dest` side to account for this. It naively uses the latest version of the
+  `dest` form for the submissions' `__version__` attribute. This will be updated
+  at some point to match the version history at the `dest` project.
+- Currently it's not possible to sync the asset versions from `src` to `dest`.
+  Once a project has been transferred with all its versions, it's best not to
+  continue updating the form and submitting data to the `src` project to avoid
+  complications.
 - If the `dest` form is updated and redeployed, it will have a new version UID.
   If the script is run again, this will result in duplicates at the `dest`
   because the submissions contain the new `__version__` value, therefore are no
-  longer unique, and therefore won't be rejected from the `dest` project.
+  longer unique, and therefore won't be rejected from the `dest` project. This
+  will be addressed once transferred submissions have their `__version__` value
+  matching the new version UIDs at the `dest` project.
 - Due to a known KoboToolbox issue, projects may contain submissions with
   duplicate submission UUIDs. Some of these submissions may be full duplicates
   of themselves, while others are unique submissions but contain a duplicate
