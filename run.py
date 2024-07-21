@@ -94,7 +94,7 @@ def main(
         print('📋 Transferring asset, versions and form media')
         asset_setup_content, *_ = get_src_asset_details(config_src=config.src)
         asset_uid = create_asset(config.dest, asset_setup_content)
-        print(f'New asset UID at `dest`: `{asset_uid}`')
+        print(f'✨ New asset UID at `dest`: {asset_uid}')
         config.update_config(loc='dest', new_data={'asset_uid': asset_uid})
         transfer_asset(config)
 
