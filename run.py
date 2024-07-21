@@ -7,6 +7,7 @@ import requests
 
 from helpers.config import Config
 from transfer.analysis import sync_analysis_data
+from transfer.asset import transfer_asset, get_src_asset_details, create_asset
 from transfer.media import get_media, del_media
 from transfer.xml import (
     get_src_submissions_xml,
@@ -67,6 +68,8 @@ def get_diff_uuids(config):
 
 def main(
     limit,
+    asset=False,
+    src_asset_uid=None,
     last_failed=False,
     keep_media=False,
     regenerate=False,
@@ -79,7 +82,21 @@ def main(
     config_file=None,
     skip_media=False,
 ):
-    config = Config(config_file=config_file, validate=validate)
+    if src_asset_uid:
+        validate = False
+    
+    config = Config(config_file=config_file, validate=validate, asset=asset)
+
+    if src_asset_uid:
+        config.update_config(loc='src', new_data={'asset_uid': src_asset_uid})
+
+    if asset:
+        print('📋 Transferring asset, versions and form media')
+        asset_setup_content, *_ = get_src_asset_details(config_src=config.src)
+        asset_uid = create_asset(config.dest, asset_setup_content)
+        print(f'✨ New asset UID at `dest`: {asset_uid}')
+        config.update_config(loc='dest', new_data={'asset_uid': asset_uid})
+        transfer_asset(config)
 
     if validation_statuses and not sync:
         print('✏️ Syncing validation statuses')
@@ -176,6 +193,20 @@ if __name__ == '__main__':
         help='Number of submissions included in each batch for download and upload.',
     )
     parser.add_argument(
+        '--asset',
+        '-a',
+        default=False,
+        action='store_true',
+        help='Transfer asset, versions and form media.',
+    )
+    parser.add_argument(
+        '--src-asset-uid',
+        '-sau',
+        default=None,
+        type=str,
+        help='Override asset_uid value in config file.',
+    )
+    parser.add_argument(
         '--last-failed',
         '-lf',
         default=False,
@@ -257,6 +288,8 @@ if __name__ == '__main__':
     try:
         main(
             limit=args.limit,
+            asset=args.asset,
+            src_asset_uid=args.src_asset_uid,
             last_failed=args.last_failed,
             regenerate=args.regenerate_uuids,
             keep_media=args.keep_media,
