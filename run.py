@@ -16,6 +16,7 @@ from transfer.xml import (
     transfer_submissions,
 )
 from transfer.validation_status import sync_validation_statuses
+from transfer.validation_status import change_validation_statuses
 
 
 def get_uuids(config_loc, params):
@@ -81,12 +82,13 @@ def main(
     chunk_size=100,
     config_file=None,
     skip_media=False,
+    change_validation_statuses_file=None, # Added by Yu Tsukioka 17OCT2024 for change_validation_statuses based on JSON file.
 ):
     if src_asset_uid:
         validate = False
     
     config = Config(config_file=config_file, validate=validate, asset=asset)
-
+      
     if src_asset_uid:
         config.update_config(loc='src', new_data={'asset_uid': src_asset_uid})
 
@@ -179,7 +181,16 @@ def main(
 
     print('✨ Done')
     print_stats(all_results)
-
+    
+    if change_validation_statuses_file: # Added by Yu Tsukioka 17OCT2024 for change_validation_statuses based on JSON file.
+        print(f'🔄 Changing validation statuses using {change_validation_statuses_file}')
+        change_validation_statuses(
+            config=config,
+            json_file=change_validation_statuses_file,
+            chunk_size=chunk_size
+        )
+        sys.exit()
+ 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
@@ -283,6 +294,13 @@ if __name__ == '__main__':
         action='store_true',
         help='Suppress stdout',
     )
+    parser.add_argument( # Added by Yu Tsukioka 17OCT2024 for change_validation_statuses based on JSON file.
+    '--change-validation-statuses',
+    '-cvs',
+    default=None,
+    type=str,
+    help='Path to JSON file for changing validation statuses.',
+    )
     args = parser.parse_args()
 
     try:
@@ -301,6 +319,7 @@ if __name__ == '__main__':
             chunk_size=args.chunk_size,
             config_file=args.config_file,
             skip_media=args.skip_media,
+            change_validation_statuses_file=args.change_validation_statuses, # Added by Yu Tsukioka 17OCT2024 for change_validation_statuses based on JSON file.
         )
     except KeyboardInterrupt:
         print('🛑 Stopping run')

@@ -120,3 +120,45 @@ def sync_validation_statuses(config, chunk_size, limit):
         validation_data, config, stats, chunk_size
     )
     print_stats(res_stats)
+
+# Added by Yu Tsukioka 17OCT2024 for change_validation_statuses based on JSON file.cccccc
+def change_validation_statuses(config, json_file, chunk_size):
+    # Initialize stats to track updates
+    stats = get_clean_stats()
+
+    # Load the JSON data from the given file
+    with open(json_file, 'r') as f:
+        input_data = json.load(f)
+
+    # Extract relevant data from the JSON
+    src_data = [
+        {
+            '_uuid': item['_uuid'],
+            'validation_status_uid': item['validation_status_uid']
+        }
+        for item in input_data
+    ]
+
+    # Retrieve destination data from the API
+    dest_data = get_results(
+        url=config.dest['data_url'],
+        params=get_params(loc='dest', limit=len(src_data)),
+        headers=config.dest['headers'],
+    )
+
+    # Join the source JSON data with destination data based on '_uuid'
+    joined = left_join(src_data, dest_data, '_uuid')
+
+    # Group the joined data by 'validation_status_uid'
+    grouped = defaultdict(list)
+    for item in joined:
+        grouped[item['validation_status_uid']].append(item)
+    validation_data = dict(grouped)
+
+    # Update the destination validation statuses in chunks
+    res_stats = update_dest_validation_status(
+        validation_data, config, stats, chunk_size
+    )
+
+    # Print the final statistics
+    print_stats(res_stats)
