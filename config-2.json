@@ -1,0 +1,14 @@
+{
+  "src": {
+    "kc_url": "https://kc.hope.unicef.org",
+    "kf_url": "https://kf.hope.unicef.org",
+    "token": "55c0734160f248f52c4f1cb121a7a70398cfdf28",
+    "asset_uid": "aJhmAzDnE2FSF8oW7xa4bt"
+  },
+  "dest": {
+    "kc_url": "https://kc-hope.unitst.org",
+    "kf_url": "https://kf-hope.unitst.org",
+    "token": "68bb88217595e0667e32ff8bf2d99c359e904fed",
+    "asset_uid": ""
+  }
+}
