@@ -121,21 +121,16 @@ def sync_validation_statuses(config, chunk_size, limit):
     )
     print_stats(res_stats)
 
-# Added by Yu Tsukioka 17OCT2024 for change_validation_statuses based on JSON file.cccccc
+# Added by Yu Tsukioka 17OCT2024 for change_validation_statuses based on JSON file.
 def change_validation_statuses(config, json_file, chunk_size):
-    # Initialize stats to track updates
     stats = get_clean_stats()
 
-    # Load the JSON data from the given file
     with open(json_file, 'r') as f:
         input_data = json.load(f)
 
-    # Extract relevant data from the JSON
+    # Prepare the source data from JSON
     src_data = [
-        {
-            '_uuid': item['_uuid'],
-            'validation_status_uid': item['validation_status_uid']
-        }
+        {'_uuid': item['_uuid'], 'validation_status_uid': item['validation_status_uid']}
         for item in input_data
     ]
 
@@ -145,20 +140,13 @@ def change_validation_statuses(config, json_file, chunk_size):
         params=get_params(loc='dest', limit=len(src_data)),
         headers=config.dest['headers'],
     )
-
-    # Join the source JSON data with destination data based on '_uuid'
     joined = left_join(src_data, dest_data, '_uuid')
-
-    # Group the joined data by 'validation_status_uid'
+    missing_uuids = [item['_uuid'] for item in src_data if item['_uuid'] not in [d['_uuid'] for d in dest_data]]
+    if missing_uuids:
+        print(f"⚠️ Warning: Some UUIDs from the JSON are not present in the destination data: {missing_uuids}")
     grouped = defaultdict(list)
     for item in joined:
         grouped[item['validation_status_uid']].append(item)
     validation_data = dict(grouped)
-
-    # Update the destination validation statuses in chunks
-    res_stats = update_dest_validation_status(
-        validation_data, config, stats, chunk_size
-    )
-
-    # Print the final statistics
+    res_stats = update_dest_validation_status(validation_data, config, stats, chunk_size)
     print_stats(res_stats)
