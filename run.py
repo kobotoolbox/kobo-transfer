@@ -138,18 +138,9 @@ def main(
         print('🪪 Getting _uuid values from src and dest projects')
         diff_uuids = get_diff_uuids(config)
 
-        if not diff_uuids and not change_validation_statuses_file: # Added by Yu Tsukioka 20OCT2024 for non-change validation cases pure sync case.
+        if not diff_uuids:
             print('👌 Projects are in-sync')
             sys.exit()
-        
-        if not diff_uuids and change_validation_statuses_file: # Added by Yu Tsukioka 17OCT2024 for same asset on config.json to change_validation_statuses based on JSON file.
-            print('🔄 Applying validation status changes from JSON file...')
-            change_validation_statuses(
-                config=config,
-                json_file=change_validation_statuses_file,
-                chunk_size=chunk_size
-            )
-        sys.exit()
 
         # run through chunks of uuids
         first_run = True
