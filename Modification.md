@@ -61,12 +61,12 @@ Example of use.
 python helpers/download_submissions.py --config-file config-xxxxx.json --format xlsx # Excel file download.
 ```
 
-🕵️ Validating config file
-📥 Downloading XLSX file from: https://{kf_url}/api/v1/data/{form_id}.xlsx
-✅ XLSX file saved successfully to: attachments/{asset_uid}.xlsx
-📥 Downloading JSON data from: https://{kf_url}/api/v2/assets/{asset_uid}/data.json
-✅ JSON file saved successfully to: attachments/{asset_uid}.json
-✅ Generated validation status Excel: attachments/{asset_uid}_val_stat.xlsx
+🕵️ Validating config file  
+📥 Downloading XLSX file from: https://{kf_url}/api/v1/data/{form_id}.xlsx  
+✅ XLSX file saved successfully to: attachments/{asset_uid}.xlsx  
+📥 Downloading JSON data from: https://{kf_url}/api/v2/assets/{asset_uid}/data.json  
+✅ JSON file saved successfully to: attachments/{asset_uid}.json  
+✅ Generated validation status Excel: attachments/{asset_uid}_val_stat.xlsx  
 
 Script will create three files.
 ```bash
@@ -76,16 +76,16 @@ Script will create three files.
     └── {asset_uid}_val_stat.xlsx
 
 ```
-{asset_uid}.xlsx contains all submissions but not including validation_status_uid.
-{asset_uid}.json contains all submissions including validation_status_uid.
-{asset_uid}_val_stat.xlsx contains only _uuid, validation_status_uid, and _id.
+{asset_uid}.xlsx contains all submissions but not including validation_status_uid.  
+{asset_uid}.json contains all submissions including validation_status_uid.  
+{asset_uid}_val_stat.xlsx contains only _uuid, validation_status_uid, and _id.  
 
 ## Change / enter desired validation statuses in the {asset_uid}_val_stat.xlsx.
 Change value of each line of 'validation_status_uid' to one of four status.
-    'validation_status_approved'
-    'validation_status_not_approved'
-    'validation_status_on_hold'
-    ''
+    - 'validation_status_approved'  
+    - 'validation_status_not_approved'  
+    - 'validation_status_on_hold'  
+    - ''  
 
 ## Helper script 2
 Convert Excel file to JSON file.
@@ -100,50 +100,53 @@ Example of use.
 ```bash
 python helpers/gen_json.py attachments/{asset_uid}_val_stat.xlsx attachments/{asset_uid}_val_stat.json
 ```
-✅ JSON file has been saved to attachments/{asset_uid}_val_stat.json
+
+✅ JSON file has been saved to attachments/{asset_uid}_val_stat.json  
 
 # Final step to change validation statuses.
 Example of use.
 ```bash
 python run.py --config-file config-xxxxx.json --sync --change-validation-statuses attachments/{asset_uid}_val_stat.json
 ```
-🕵️ Validating config file
-🪪 Getting _uuid values from src and dest projects
-🔄 Changing validation statuses using {change_validation_statuses_file}
------------
-validation_status_on_hold: xxx
-validation_status_not_approved: xxx
-validation_status_approved: xxx
------------
+
+🕵️ Validating config file  
+🪪 Getting _uuid values from src and dest projects  
+🔄 Changing validation statuses using {change_validation_statuses_file}  
+-----------  
+validation_status_on_hold: xxx  
+validation_status_not_approved: xxx  
+validation_status_approved: xxx  
+-----------  
 
 Another example of use.
 ```bash
 python run.py --config-file config-xxxxxx.json --asset --keep-media --change-validation-statuses attachments/{asset_uid}_val_stat.json
 ```
-🕵️ Validating config file
-📋 Transferring asset, versions and form media
-✨ New asset UID at `dest`: {new_asset_uid}
-💼 Transferring all form media files
-✅ locations.csv
-✅ nat_id.csv
-✅ enumerators.csv
-✅ programme_no.csv
-📨 Transferring and deploying all versions
-✅ {new_asset_uid}
-✨ All 1 versions deployed
-📸 Getting all submission media ...............................................................................................................................................
-📨 Transferring submission data
-✅ {_uuid_1}
-✅ {_uuid_2}
-✅ {_uuid_3}
-✨ Done
-🧮 xxx  ✅ xxx  ⚠️ 0     ❌ 0
-🔄 Changing validation statuses using attachments/{asset_uid}_val_stat.json
------------
-validation_status_on_hold: xx
-validation_status_not_approved: xx
-validation_status_approved: xxx
------------
+
+🕵️ Validating config file  
+📋 Transferring asset, versions and form media  
+✨ New asset UID at `dest`: {new_asset_uid}  
+💼 Transferring all form media files  
+✅ locations.csv  
+✅ nat_id.csv  
+✅ enumerators.csv  
+✅ programme_no.csv  
+📨 Transferring and deploying all versions  
+✅ {new_asset_uid}  
+✨ All 1 versions deployed  
+📸 Getting all submission media .....................................................................
+📨 Transferring submission data  
+✅ {_uuid_1}  
+✅ {_uuid_2}  
+✅ {_uuid_3}  
+✨ Done  
+🧮 xxx  ✅ xxx  ⚠️ 0     ❌ 0  
+🔄 Changing validation statuses using attachments/{asset_uid}_val_stat.json  
+-----------  
+validation_status_on_hold: xx  
+validation_status_not_approved: xx  
+validation_status_approved: xxx  
+-----------  
 
 
 ## To do list

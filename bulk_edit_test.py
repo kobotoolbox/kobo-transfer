@@ -18,7 +18,7 @@ def main(config_file=None, payload_file=None):
 
     headers = config.get('headers', {})
     kf_url = config.get('kf_url')
-    asset_uid = config.get('asset_uid')  # Ensure 'asset_uid' is in the config
+    asset_uid = config.get('asset_uid')
 
     if not headers:
         print("❌ 'headers' not found in configuration.")
@@ -32,9 +32,7 @@ def main(config_file=None, payload_file=None):
         print("❌ 'asset_uid' not found in configuration.")
         sys.exit(1)
 
-    # Prepare the payload
     if payload_file:
-        # If payload_file is provided, read from JSON file
         try:
             with open(payload_file, 'r', encoding='utf-8') as f:
                 payload_content = json.load(f)
@@ -42,10 +40,9 @@ def main(config_file=None, payload_file=None):
             print(f"❌ Failed to read payload file: {e}")
             sys.exit(1)
     else:
-        # Define payload directly in the code
         payload_content = {
             "payload": {
-                "submission_ids": [5697, 5698, 5699],  # Replace with actual numerical IDs
+                "submission_ids": [5697, 5698, 5699],
                 "data": {
                     "individual_questions/individual_details/full_name_i_c": "JOSPHANT OCHIENG GENGA",
                     "individual_questions/individual_details/gender_i_c": "female"
@@ -53,7 +50,6 @@ def main(config_file=None, payload_file=None):
             }
         }
 
-    # Validate payload structure
     if not isinstance(payload_content, dict):
         print("❌ Payload should be a JSON object.")
         sys.exit(1)
@@ -79,14 +75,12 @@ def main(config_file=None, payload_file=None):
         print("❌ 'data' must be a dictionary of fields to update.")
         sys.exit(1)
 
-    # Construct the bulk PATCH endpoint
     bulk_patch_url = f"{kf_url}/api/v2/assets/{asset_uid}/data/bulk/"
 
-    # Make the PATCH request
     try:
         response = requests.patch(
             url=bulk_patch_url,
-            json=payload_content,  # Use json= to automatically set Content-Type
+            json=payload_content,
             headers=headers
         )
 
