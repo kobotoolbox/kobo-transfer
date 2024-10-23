@@ -107,47 +107,44 @@ python helpers/gen_json.py attachments/{asset_uid}_val_stat.xlsx attachments/{as
 Example of use.
 ```bash
 python run.py --config-file config-xxxxx.json --sync --change-validation-statuses attachments/{asset_uid}_val_stat.json
+🕵️ Validating config file  
+🪪 Getting _uuid values from src and dest projects  
+🔄 Changing validation statuses using {change_validation_statuses_file}  
+-----------  
+validation_status_on_hold: xxx  
+validation_status_not_approved: xxx  
+validation_status_approved: xxx  
+-----------  
 ```
-
-\🕵️ Validating config file  
-\🪪 Getting _uuid values from src and dest projects  
-\🔄 Changing validation statuses using {change_validation_statuses_file}  
------------  
-\validation_status_on_hold: xxx  
-\validation_status_not_approved: xxx  
-\validation_status_approved: xxx  
------------  
 
 Another example of use.
 ```bash
 python run.py --config-file config-xxxxxx.json --asset --keep-media --change-validation-statuses attachments/{asset_uid}_val_stat.json
+🕵️ Validating config file  
+📋 Transferring asset, versions and form media  
+✨ New asset UID at `dest`: {new_asset_uid}  
+💼 Transferring all form media files  
+✅ locations.csv  
+✅ nat_id.csv  
+✅ enumerators.csv  
+✅ programme_no.csv  
+📨 Transferring and deploying all versions  
+✅ {new_asset_uid}  
+✨ All 1 versions deployed  
+📸 Getting all submission media .....................................................................
+📨 Transferring submission data  
+✅ {_uuid_1}  
+✅ {_uuid_2}  
+✅ {_uuid_3}  
+✨ Done  
+🧮 xxx  ✅ xxx  ⚠️ 0     ❌ 0  
+🔄 Changing validation statuses using attachments/{asset_uid}_val_stat.json  
+-----------  
+validation_status_on_hold: xx  
+validation_status_not_approved: xx  
+validation_status_approved: xxx  
+-----------  
 ```
-
-\🕵️ Validating config file  
-\📋 Transferring asset, versions and form media  
-\✨ New asset UID at `dest`: {new_asset_uid}  
-\💼 Transferring all form media files  
-\✅ locations.csv  
-\✅ nat_id.csv  
-\✅ enumerators.csv  
-\✅ programme_no.csv  
-\📨 Transferring and deploying all versions  
-\✅ {new_asset_uid}  
-\✨ All 1 versions deployed  
-\📸 Getting all submission media .....................................................................
-\📨 Transferring submission data  
-\✅ {_uuid_1}  
-\✅ {_uuid_2}  
-\✅ {_uuid_3}  
-\✨ Done  
-\🧮 xxx  ✅ xxx  ⚠️ 0     ❌ 0  
-\🔄 Changing validation statuses using attachments/{asset_uid}_val_stat.json  
------------  
-\validation_status_on_hold: xx  
-\validation_status_not_approved: xx  
-\validation_status_approved: xxx  
------------  
-
 
 ## To do list
 - [ ] Selected submission transfer to a new asset.
