@@ -103,7 +103,7 @@ python helpers/gen_json.py attachments/{asset_uid}_val_stat.xlsx attachments/{as
 
 ✅ JSON file has been saved to attachments/{asset_uid}_val_stat.json  
 
-# Final step to change validation statuses.
+## Final step to change validation statuses.
 Example of use.
 ```bash
 python run.py --config-file config-xxxxx.json --sync --change-validation-statuses attachments/{asset_uid}_val_stat.json
