@@ -1,5 +1,6 @@
-# kobo-transfer modification
-Change Validation Statuses based on JSON file.
+# kobo-transfer modification and additional code for "bulk" edit of submission
+1) Change Validation Statuses based on JSON file.
+2) bulk_edit_test.py: Additional code designed to update submissions in KoBoToolbox.
 
 ## Setup
 
@@ -39,12 +40,25 @@ python 3 run.py \
 ```
 
 ## Usage
-
+# Change validation status
 ```bash
 python3 run.py \
   [--config-file/-c <file path>] [--sync/-s] [--change-validation-statuses/-cvs <file path>]
 ```
+Arguments
+--config-file or -c: Path to the configuration file (default: config.json).
+--change-validation-statuses or -cvs: Path to the validation status JSON file.
 **The change validation statuses only works if it's used with --sync as well as the same assets of 'src' and 'dest' designated in the config.json file.**
+
+# Bulk edit
+```bash
+python3 bulk_edit_test.py \
+  [--config-file/-c <file path>] [--payload-file/-p <file path>]
+```
+Arguments
+--config-file or -c: Path to the configuration file (default: config.json).
+--payload-file or -p: Path to the payload JSON file (optional). If not provided, a default payload in the code is used.
+
 
 ## Helper script 1
 Download all submissions of the asset written in config JSON file in the 'attachments' folder.
