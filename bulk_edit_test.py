@@ -1,3 +1,5 @@
+# Added by Yu Tsukioka 17OCT2024 for bulk edit test
+
 import requests
 import json
 import sys
@@ -42,10 +44,9 @@ def main(config_file=None, payload_file=None):
     else:
         payload_content = {
             "payload": {
-                "submission_ids": [5697, 5698, 5699],
+                "submission_ids": [1186801],
                 "data": {
-                    "individual_questions/individual_details/full_name_i_c": "JOSPHANT OCHIENG GENGA",
-                    "individual_questions/individual_details/gender_i_c": "female"
+                    "individual_questions/individual_details/relationship_i_c": "son_daughter",
                 }
             }
         }

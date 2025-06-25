@@ -59,21 +59,54 @@ Arguments
 --config-file or -c: Path to the configuration file (default: config.json).
 --payload-file or -p: Path to the payload JSON file (optional). If not provided, a default payload in the code is used.
 
-
-## Helper script 1
-Download all submissions of the asset written in config JSON file in the 'attachments' folder.
-
-**Usage**
-helpers/download_submissions.py
+# Local Download Only Mode
 ```bash
-python3 helpers/download_submissions.py \
-  [--config-file/-c <file path>] [--format <xlsx, json, xml, geojson>]
+python3 run.py \
+  [--config-file/-c <file path>] [--download-only/-d] [--skip-media/-sm]
+```
+Arguments
+--config-file or -c: Path to the configuration file (default: config.json).
+--download-only or -d: Download submissions and media locally without uploading to a dest form. This mode preserves all submitted form data as text and downloads everything to the attachments/ directory.
+--skip-media or -sm: Skip downloading media files, only download submission data (can be used with --download-only).
+
+**Note:** In download-only mode, you don't need to configure the 'dest' section in your config.json file since no upload will occur.
+
+## Example Output for Download-Only Mode
+
+### With media files (default):
+```
+🕵️ Validating config file  
+📥 Download-only mode: Downloading submissions and media locally  
+📸 Getting all submission media ......................................................................  
+📥 Downloading submissions with text formatting preserved...  
+📥 Creating XLSX export with text formatting...  
+📥 Waiting for export to complete...  
+📥 Downloading XLSX file with text formatting...  
+✅ XLSX file with text formatting saved to: attachments/{asset_uid}_text.xlsx  
+📥 Downloading JSON data from: https://{kf_url}/api/v2/assets/{asset_uid}/data.json  
+✅ JSON file saved successfully to: attachments/{asset_uid}.json  
+✅ Generated validation status Excel: attachments/{asset_uid}_val_stat.xlsx  
+✅ Download completed. All files saved in attachments/ directory  
+📁 Media files and submissions have been preserved locally  
 ```
 
-Example of use.
-```bash
-python helpers/download_submissions.py --config-file config-xxxxx.json --format xlsx # Excel file download.
+### Without media files (using --skip-media):
 ```
+🕵️ Validating config file  
+📥 Download-only mode: Downloading submissions and media locally  
+📥 Downloading submissions with text formatting preserved...  
+📥 Creating XLSX export with text formatting...  
+📥 Waiting for export to complete...  
+📥 Downloading XLSX file with text formatting...  
+✅ XLSX file with text formatting saved to: attachments/{asset_uid}_text.xlsx  
+📥 Downloading JSON data from: https://{kf_url}/api/v2/assets/{asset_uid}/data.json  
+✅ JSON file saved successfully to: attachments/{asset_uid}.json  
+✅ Generated validation status Excel: attachments/{asset_uid}_val_stat.xlsx  
+📋 Skipping media file downloads as requested  
+✅ Download completed. All files saved in attachments/ directory  
+📋 Media file downloads were skipped as requested  
+```
+
 
 🕵️ Validating config file  
 📥 Downloading XLSX file from: https://{kf_url}/api/v1/data/{form_id}.xlsx  

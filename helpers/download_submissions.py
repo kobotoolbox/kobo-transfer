@@ -1,3 +1,5 @@
+# Added by Yu Tsukioka 17OCT2024 for downloading KoBoToolbox submissions in various formats
+
 import requests
 import json
 import sys
@@ -7,6 +9,8 @@ import pandas as pd
 from openpyxl.worksheet.datavalidation import DataValidation
 from openpyxl import Workbook
 from openpyxl.utils import get_column_letter
+import time
+
 current_dir = Path(__file__).resolve().parent
 project_root = current_dir.parent
 sys.path.insert(0, str(project_root))
@@ -50,6 +54,59 @@ def download_xlsx(asset_uid, form_id, kf_url, headers, output_dir):
 
     print(f"✅ XLSX file saved successfully to: {output_file}")
     return output_file
+
+def download_xlsx_text(asset_uid, kf_url, headers, output_dir):
+    """
+    Download XLSX with text formatting using the export API.
+    """
+    create_payload = {
+        "type": "xlsx",
+        "xls_types_as_text": True,
+        "include_labels": False,
+        "xpath": "results"
+    }
+    create_url = f"{kf_url}/api/v2/assets/{asset_uid}/exports/"
+    print(f"📥 Creating XLSX export with text formatting...")
+    
+    try:
+        r = requests.post(create_url, headers=headers, json=create_payload)
+        r.raise_for_status()
+        export_info = r.json()
+    except requests.exceptions.RequestException as e:
+        print(f"❌ Error creating export: {e}")
+        sys.exit(1)
+
+    export_url = export_info["url"]
+    print(f"📥 Waiting for export to complete...")
+    while export_info["state"] != "complete":
+        time.sleep(3)
+        try:
+            export_info = requests.get(export_url, headers=headers).json()
+            if export_info["state"] == "error":
+                print(f"❌ Export failed: {export_info.get('messages', 'Unknown error')}")
+                sys.exit(1)
+        except requests.exceptions.RequestException as e:
+            print(f"❌ Error checking export status: {e}")
+            sys.exit(1)
+
+    # 3. download the final file
+    dl_url = export_info["result"]["url"]
+    out_file = output_dir / f"{asset_uid}_text.xlsx"
+    
+    print(f"📥 Downloading XLSX file with text formatting...")
+    try:
+        with requests.get(dl_url, headers=headers, stream=True) as resp:
+            resp.raise_for_status()
+            with open(out_file, "wb") as f:
+                for chunk in resp.iter_content(1024):
+                    if chunk:
+                        f.write(chunk)
+    except requests.exceptions.RequestException as e:
+        print(f"❌ Error downloading XLSX file: {e}")
+        sys.exit(1)
+    
+    print(f"✅ XLSX file with text formatting saved to: {out_file}")
+    return out_file
 
 def download_xml(asset_uid, kf_url, headers, output_dir):
     download_url = f"{kf_url}/api/v2/assets/{asset_uid}/data.xml"
@@ -178,7 +235,7 @@ def generate_validation_status(output_file, output_dir, output_json):
         print(f"❌ Error generating validation status Excel: {e}")
         sys.exit(1)
                                               
-def main(config_file=None, format=None):
+def main(config_file=None, format=None, text_format=False, skip_media_download=False):
     try:
         config = Config(config_file=config_file).src
     except Exception as e:
@@ -193,12 +250,19 @@ def main(config_file=None, format=None):
     output_dir.mkdir(exist_ok=True)
 
     if format == "xlsx":
-        form_id = get_form_id(config)
-        output_xlsx = download_xlsx(asset_uid, form_id, kf_url, headers, output_dir)
+        if text_format:
+            output_xlsx = download_xlsx_text(asset_uid, kf_url, headers, output_dir)
+        else:
+            form_id = get_form_id(config)
+            output_xlsx = download_xlsx(asset_uid, form_id, kf_url, headers, output_dir)
+        
         output_json = download_other_format(asset_uid, kf_url, headers, "json", output_dir)
         generate_validation_status(output_xlsx, output_dir, output_json)
     else:
         download_other_format(asset_uid, kf_url, headers, format, output_dir)
+    
+    if skip_media_download:
+        print("📋 Skipping media file downloads as requested")
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
@@ -219,12 +283,28 @@ if __name__ == '__main__':
         required=True,
         help="Data format: 'xml', 'geojson', 'json', or 'xlsx'."
     )
+    parser.add_argument(
+        "--text-format",
+        "-t",
+        default=False,
+        action='store_true',
+        help="For XLSX format, preserve all data as text (avoid automatic type conversion)."
+    )
+    parser.add_argument(
+        "--skip-media-download",
+        "-smd",
+        default=False,
+        action='store_true',
+        help="Skip downloading media files, only download submission data."
+    )
     args = parser.parse_args()
 
     try:
         main(
             config_file=args.config_file,
             format=args.format,
+            text_format=args.text_format,
+            skip_media_download=args.skip_media_download,
         )
     except KeyboardInterrupt:
         print('🛑 Stopping run')

@@ -4,8 +4,10 @@ import argparse
 import json
 import sys
 import requests
+from pathlib import Path
 
 from helpers.config import Config
+from helpers.download_submissions import main as download_submissions_main
 from transfer.analysis import sync_analysis_data
 from transfer.asset import transfer_asset, get_src_asset_details, create_asset
 from transfer.media import get_media, del_media
@@ -83,14 +85,48 @@ def main(
     config_file=None,
     skip_media=False,
     change_validation_statuses_file=None, # Added by Yu Tsukioka 17OCT2024 for change_validation_statuses based on JSON file.
+    download_only=False, # Added for Local Download Only mode
 ):
     if src_asset_uid:
+        validate = False
+    
+    # Skip validation if download_only mode since we don't need dest config
+    if download_only:
         validate = False
     
     config = Config(config_file=config_file, validate=validate, asset=asset)
       
     if src_asset_uid:
         config.update_config(loc='src', new_data={'asset_uid': src_asset_uid})
+
+    # Download-only mode: Download all media and submissions, then exit
+    if download_only:
+        print('📥 Download-only mode: Downloading submissions and media locally')
+        
+        # Always keep media in download-only mode
+        keep_media = True
+        
+        # Download all media (unless skip_media is True)
+        if not skip_media:
+            print('📸 Getting all submission media', end=' ', flush=True)
+            get_media()
+        
+        # Download submissions using the enhanced download function
+        print('📥 Downloading submissions with text formatting preserved...')
+        download_submissions_main(
+            config_file=config_file, 
+            format="xlsx", 
+            text_format=True,
+            skip_media_download=skip_media
+        )
+        
+        # Keep media files (don't delete them)
+        print('✅ Download completed. All files saved in attachments/ directory')
+        if skip_media:
+            print('📋 Media file downloads were skipped as requested')
+        else:
+            print('📁 Media files and submissions have been preserved locally')
+        return
 
     if asset:
         print('📋 Transferring asset, versions and form media')
@@ -310,6 +346,13 @@ if __name__ == '__main__':
     type=str,
     help='Path to JSON file for changing validation statuses.',
     )
+    parser.add_argument(
+        '--download-only',
+        '-d',
+        default=False,
+        action='store_true',
+        help='Download submissions and media locally without uploading to a dest form',
+    )
     args = parser.parse_args()
 
     try:
@@ -329,6 +372,7 @@ if __name__ == '__main__':
             config_file=args.config_file,
             skip_media=args.skip_media,
             change_validation_statuses_file=args.change_validation_statuses, # Added by Yu Tsukioka 17OCT2024 for change_validation_statuses based on JSON file.
+            download_only=args.download_only, # Added for Local Download Only mode
         )
     except KeyboardInterrupt:
         print('🛑 Stopping run')
