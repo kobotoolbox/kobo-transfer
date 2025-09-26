@@ -87,7 +87,7 @@ def transfer_asset_media(config_src, config_dest, files):
     '''
     if not files:
         return
-    
+
     dest_headers = {
         **config_dest['headers'],
         'Content-Type': 'application/x-www-form-urlencoded',
@@ -123,8 +123,10 @@ def transfer_asset(config):
     config_dest = config.dest
 
     _, deployed_versions, files = get_src_asset_details(config_src=config_src)
-    print('💼 Transferring all form media files')
+    print(f'💼 Transferring all {len(files)} form media files')
     transfer_asset_media(config_src, config_dest, files)
-    print('📨 Transferring and deploying all versions')
+    print(
+        f'📨 Transferring and deploying all {len(deployed_versions)} versions'
+    )
     deploy_all_versions(config_src, config_dest, deployed_versions)
     print(f'✨ All {len(deployed_versions)} versions deployed')
