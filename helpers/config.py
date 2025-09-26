@@ -82,7 +82,7 @@ class Config(metaclass=Singleton):
             'deployment_url': f'{asset_url}/deployment/',
             'xml_url': f'{asset_url}/data.xml',
             'data_url': f'{asset_url}/data',
-            'files_url': f'{asset_url}/files',
+            'files_url': f'{asset_url}/files/',
             'validation_statuses_url': f'{asset_url}/data/validation_statuses.json',
             'advanced_submission_url': f"{data['kf_url']}/advanced_submission_post/{data['asset_uid']}",
         }
