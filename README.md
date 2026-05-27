@@ -199,6 +199,11 @@ the tree structure of:
   longer unique, and therefore won't be rejected from the `dest` project. This
   will be addressed once transferred submissions have their `__version__` value
   matching the new version UIDs at the `dest` project.
+- When syncing analysis data (`--analysis-data`), automatic actions
+  (`automatic_google_transcription`, `automatic_google_translation`,
+  `automatic_bedrock_qual`) are converted to their manual equivalents on the
+  destination. The original automatic processing is not reproduced, and internal
+  version UUIDs will differ from the source.
 - Due to a known KoboToolbox issue, projects may contain submissions with
   duplicate submission UUIDs. Some of these submissions may be full duplicates
   of themselves, while others are unique submissions but contain a duplicate
