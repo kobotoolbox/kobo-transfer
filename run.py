@@ -18,6 +18,23 @@ from transfer.xml import (
 from transfer.validation_status import sync_validation_statuses
 
 
+def _confirm_analysis_data_sync():
+    print(
+        '\n⚠️  Warning: Analysis data sync has the following limitations:\n'
+        '  - Automatic actions (transcription, translation, Bedrock qualitative\n'
+        '    analysis) are converted to their manual equivalents on dest. The\n'
+        '    original automatic processing is not reproduced.\n'
+        '  - Internal version UUIDs will differ from the source.\n'
+    )
+    while True:
+        answer = input('Proceed? [y/n]: ').strip().lower()
+        if answer == 'y':
+            break
+        if answer == 'n':
+            print('Cancelled. Re-run without the --analysis-data (-ad) flag to skip.')
+            sys.exit()
+
+
 def get_uuids(config_loc, params):
     def get_uuids_rec(uuids=[], url=None, params=None, headers=None):
         if 'fields' not in url:
@@ -104,6 +121,7 @@ def main(
         sys.exit()
 
     if analysis_data and not sync:
+        _confirm_analysis_data_sync()
         print('📶 Syncing analysis data')
         sync_analysis_data(config, limit)
         sys.exit()
@@ -163,6 +181,7 @@ def main(
             sync_validation_statuses(config, chunk_size, limit)
 
         if analysis_data:
+            _confirm_analysis_data_sync()
             print('📶 Syncing analysis data')
             sync_analysis_data(config, limit)
 
