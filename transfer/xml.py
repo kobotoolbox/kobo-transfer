@@ -96,6 +96,24 @@ def update_element_value(e, path, value):
         update_element_value(parent, '/'.join(parts[1:]), value)
 
 
+def remove_element(e, path):
+    """
+    Remove a node if it exists, even when nested within a group.
+    """
+    parts = path.split('/')
+    if len(parts) == 1:
+        el = e.find(parts[0])
+        if el is not None:
+            e.remove(el)
+            return True
+        return False
+
+    parent = e.find(parts[0])
+    if parent is None:
+        return False
+    return remove_element(parent, '/'.join(parts[1:]))
+
+
 def update_root_element_tag_and_attrib(e, tag, attrib):
     """
     Update the root of each submission's XML tree
@@ -149,6 +167,8 @@ def transfer_submissions(all_submissions_xml, asset_data, quiet, regenerate):
         update_element_value(
             submission_xml, 'formhub/uuid', asset_data['formhub_uuid']
         )
+        if remove_element(submission_xml, 'meta/deprecatedID'):
+            messages.append('Removed `deprecatedID` from submission XML')
 
         submission_values = get_all_values_from_xml(submission_xml)
         xml_value_media_map = get_xml_value_media_mapping(submission_values)
