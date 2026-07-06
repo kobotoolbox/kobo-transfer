@@ -100,18 +100,15 @@ def remove_element(e, path):
     """
     Remove a node if it exists, even when nested within a group.
     """
-    parts = path.split('/')
-    if len(parts) == 1:
-        el = e.find(parts[0])
-        if el is not None:
-            e.remove(el)
-            return True
-        return False
-
-    parent = e.find(parts[0])
+    parent_path, _, tag = path.rpartition('/')
+    parent = e.find(parent_path) if parent_path else e
     if parent is None:
         return False
-    return remove_element(parent, '/'.join(parts[1:]))
+    el = parent.find(tag)
+    if el is None:
+        return False
+    parent.remove(el)
+    return True
 
 
 def update_root_element_tag_and_attrib(e, tag, attrib):
