@@ -107,7 +107,7 @@ def submit_data(xml_sub, _uuid, original_uuid, xml_value_media_map):
     )
     session = requests.Session()
     res = session.send(res.prepare())
-    return res.status_code
+    return res.status_code, res.text
 
 
 def update_element_value(e, path, value):
@@ -203,7 +203,7 @@ def transfer_submissions(all_submissions_xml, asset_data, quiet, regenerate):
         submission_values = get_all_values_from_xml(submission_xml)
         xml_value_media_map = get_xml_value_media_mapping(submission_values)
 
-        result = submit_data(
+        result, response_text = submit_data(
             ET.tostring(submission_xml),
             _uuid,
             original_uuid,
@@ -215,16 +215,21 @@ def transfer_submissions(all_submissions_xml, asset_data, quiet, regenerate):
             messages.append(f'⚠️  {_uuid}')
         else:
             messages.append(f'❌ {_uuid}')
-            log_failure(_uuid)
+            log_failure(_uuid, response_text)
         if not quiet:
             print(' | '.join(reversed(messages)))
         results.append(result)
     return results
 
 
-def log_failure(_uuid):
+def log_failure(_uuid, response_text=''):
     with open(Config.FAILURES_LOCATION, 'a') as f:
         f.write(f'{_uuid}\n')
+    failures_detail_location = os.path.join(
+        os.path.dirname(Config.FAILURES_LOCATION), 'failures_detail.log'
+    )
+    with open(failures_detail_location, 'a') as f:
+        f.write(f'{_uuid}: {response_text.strip()}\n')
 
 
 def get_formhub_uuid():
