@@ -2,6 +2,7 @@ import glob
 import io
 import json
 import os
+import re
 import requests
 import uuid
 from datetime import datetime
@@ -51,6 +52,36 @@ def get_src_submissions_xml(xml_url):
     if not res.status_code == 200:
         raise Exception('Something went wrong')
     return ET.fromstring(res.text)
+
+
+_RESERVED_TAGS = {'__version__'}
+_INVALID_TAG_CHARS_RE = re.compile(r'[^A-Za-z0-9_.\-]')
+
+
+def sanitize_tag_name(tag):
+    """
+    Some source forms end up with question `name`s that aren't valid XML
+    element names: names starting with an underscore (commonly because the
+    name was auto-generated from a label starting with `¿`, which pyxform
+    collapses to `_`), or containing accented/non-ASCII characters. The
+    latter parse fine as Unicode tag names, but `ElementTree.tostring`
+    serializes non-ASCII characters in element *names* as numeric character
+    references (e.g. `&#243;` for `ó`), which XML does not allow outside of
+    text/attribute content -- producing invalid XML on the wire. Destination
+    KoBoCAT/OpenRosa instances reject the result as "Improperly formatted
+    XML", so normalize tag names to plain ASCII here.
+    """
+    sanitized = _INVALID_TAG_CHARS_RE.sub('', tag)
+    if not sanitized or sanitized[0].isdigit() or sanitized.startswith('_'):
+        sanitized = f'q{sanitized}'
+    return sanitized
+
+
+def sanitize_element_tags(e):
+    if e.tag not in _RESERVED_TAGS:
+        e.tag = sanitize_tag_name(e.tag)
+    for child in e:
+        sanitize_element_tags(child)
 
 
 def submit_data(xml_sub, _uuid, original_uuid, xml_value_media_map):
@@ -166,6 +197,8 @@ def transfer_submissions(all_submissions_xml, asset_data, quiet, regenerate):
         )
         if remove_element(submission_xml, 'meta/deprecatedID'):
             messages.append('Removed `deprecatedID` from submission XML')
+
+        sanitize_element_tags(submission_xml)
 
         submission_values = get_all_values_from_xml(submission_xml)
         xml_value_media_map = get_xml_value_media_mapping(submission_values)
