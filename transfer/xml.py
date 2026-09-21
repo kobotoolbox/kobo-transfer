@@ -4,6 +4,7 @@ import json
 import os
 import requests
 import uuid
+import mimetypes
 from datetime import datetime
 from xml.etree import ElementTree as ET
 
@@ -66,7 +67,15 @@ def submit_data(xml_sub, _uuid, original_uuid, xml_value_media_map):
     for file_path in glob.glob(submission_attachments_path):
         filename = os.path.basename(file_path)
         filename_value = xml_value_media_map.get(filename)
-        files[filename_value] = (filename_value, open(file_path, 'rb'))
+        # Add this file to the multi-part POST only if it is actually referenced
+        # in the submission. This prevents kobo-transfer from accidentally
+        # picking up spurious files in the attachments directory tree.
+        if filename_value is not None:
+            mime_type, _ = mimetypes.guess_type(file_path)
+            if mime_type is not None:
+                files[filename_value] = (filename_value, open(file_path, 'rb'), mime_type)
+            else:
+                files[filename_value] = (filename_value, open(file_path, 'rb'))
 
     res = requests.Request(
         method='POST',
