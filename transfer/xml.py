@@ -56,11 +56,13 @@ def get_src_submissions_xml(xml_url):
 def submit_data(xml_sub, _uuid, original_uuid, xml_value_media_map):
     config = Config().dest
     MAX_SIZE = 100*1024*1024  # client_max_body_size = 100M
-
+    OVERHEAD = 1024  # include a (generous) 1k overhead per part for boundary string, content-type, content-disposition...
+    
     xml = io.BytesIO(xml_sub).getvalue()  # may need to resend XML so persist this value
     file_tuple = (_uuid, xml)
     files = {'xml_submission_file': file_tuple}
-    size = len(xml)
+    start_size = len(xml) + OVERHEAD
+    size = start_size
 
     # see if there is media to upload with it
     submission_attachments_path = os.path.join(
@@ -72,7 +74,7 @@ def submit_data(xml_sub, _uuid, original_uuid, xml_value_media_map):
             # Check if there are any remaining attachments to send
             if len(attachments):
                 file_path = attachments[-1]  # last element is the one that will be pop()'d off
-                filesize = os.path.getsize(file_path) + 1024  # add 1k per file overhead for boundary string, content-type, content-disposition...
+                filesize = os.path.getsize(file_path) + OVERHEAD  # add 1k per file overhead for boundary string, content-type, content-disposition...
                 if size + filesize < MAX_SIZE:
                     size += filesize
                     filename = os.path.basename(file_path)
@@ -81,7 +83,7 @@ def submit_data(xml_sub, _uuid, original_uuid, xml_value_media_map):
                     #print(f"+ adding {filename} ({filesize} bytes)")
                     attachments.pop()
                     continue  # keep adding attachments till hit MAX_SIZE
-                elif len(xml) + filesize >= MAX_SIZE:  # this file is too big to ever be sent, so skip it
+                elif start_size + filesize >= MAX_SIZE:  # this file is too big to ever be sent, so skip it
                     #print(f"- skipping {file_path} ({filesize} bytes) - too large to send")
                     attachments.pop()
                     continue
@@ -101,7 +103,7 @@ def submit_data(xml_sub, _uuid, original_uuid, xml_value_media_map):
 
             # Otherwise continue sending remaining attachments in followup POSTs
             files = {'xml_submission_file': file_tuple}  # submission XML is always re-sent in OpenRosa
-            size = len(xml)
+            size = start_size
 
     return res.status_code
 
