@@ -81,6 +81,10 @@ def submit_data(xml_sub, _uuid, original_uuid, xml_value_media_map):
                     #print(f"+ adding {filename} ({filesize} bytes)")
                     attachments.pop()
                     continue  # keep adding attachments till hit MAX_SIZE
+                elif len(xml) + filesize >= MAX_SIZE:  # this file is too big to ever be sent, so skip it
+                    #print(f"- skipping {file_path} ({filesize} bytes) - too large to send")
+                    attachments.pop()
+                    continue
 
             req = requests.Request(
                 method='POST',
