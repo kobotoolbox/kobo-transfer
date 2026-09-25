@@ -55,27 +55,62 @@ def get_src_submissions_xml(xml_url):
 
 def submit_data(xml_sub, _uuid, original_uuid, xml_value_media_map):
     config = Config().dest
-
-    file_tuple = (_uuid, io.BytesIO(xml_sub))
+    MAX_SIZE = 100*1024*1024  # client_max_body_size = 100M
+    OVERHEAD = 1024  # include a (generous) 1k overhead per part for boundary string, content-type, content-disposition...
+    
+    xml = io.BytesIO(xml_sub).getvalue()  # may need to resend XML so persist this value
+    file_tuple = (_uuid, xml)
     files = {'xml_submission_file': file_tuple}
+    start_size = len(xml) + OVERHEAD
+    size = start_size
 
+    skipped = 0  # count of oversized attachments that were skipped
+    
     # see if there is media to upload with it
     submission_attachments_path = os.path.join(
         Config.ATTACHMENTS_DIR, Config().src['asset_uid'], original_uuid, '*'
     )
-    for file_path in glob.glob(submission_attachments_path):
-        filename = os.path.basename(file_path)
-        filename_value = xml_value_media_map.get(filename)
-        files[filename_value] = (filename_value, open(file_path, 'rb'))
+    attachments = glob.glob(submission_attachments_path)
+    with requests.Session() as session:
+        while True:
+            # Check if there are any remaining attachments to send
+            if len(attachments):
+                file_path = attachments[-1]  # last element is the one that will be pop()'d off
+                filesize = os.path.getsize(file_path) + OVERHEAD  # add 1k per file overhead for boundary string, content-type, content-disposition...
+                if size + filesize < MAX_SIZE:
+                    size += filesize
+                    filename = os.path.basename(file_path)
+                    filename_value = xml_value_media_map.get(filename)
+                    files[filename_value] = (filename_value, open(file_path, 'rb'))
+                    #print(f"+ adding {filename} ({filesize} bytes)")
+                    attachments.pop()
+                    continue  # keep adding attachments till hit MAX_SIZE
+                elif start_size + filesize >= MAX_SIZE:  # this file is too big to ever be sent, so skip it
+                    #print(f"- skipping {file_path} ({filesize} bytes) - too large to send")
+                    attachments.pop()
+                    skipped += 1
+                    continue
 
-    res = requests.Request(
-        method='POST',
-        url=config['submission_url'],
-        files=files,
-        headers=config['headers'],
-    )
-    session = requests.Session()
-    res = session.send(res.prepare())
+            req = requests.Request(
+                method='POST',
+                url=config['submission_url'],
+                files=files,
+                headers=config['headers'],
+            )
+            #print("sending POST")
+            res = session.send(req.prepare())
+
+            # Abort on error or else stop POSTing when all attachments sent
+            if (res.status_code // 100) != 2 or not(len(attachments)):
+                break
+
+            # Otherwise continue sending remaining attachments in followup POSTs
+            files = {'xml_submission_file': file_tuple}  # submission XML is always re-sent in OpenRosa
+            size = start_size
+
+    if (res.status_code // 100) == 2 and skipped:
+        return 202  # transfer_submissions() treats a 202 as a warning; use this to show some attachments have been skipped
+        
     return res.status_code
 
 
