@@ -64,6 +64,8 @@ def submit_data(xml_sub, _uuid, original_uuid, xml_value_media_map):
     start_size = len(xml) + OVERHEAD
     size = start_size
 
+    skipped = 0  # count of oversized attachments that were skipped
+    
     # see if there is media to upload with it
     submission_attachments_path = os.path.join(
         Config.ATTACHMENTS_DIR, Config().src['asset_uid'], original_uuid, '*'
@@ -86,6 +88,7 @@ def submit_data(xml_sub, _uuid, original_uuid, xml_value_media_map):
                 elif start_size + filesize >= MAX_SIZE:  # this file is too big to ever be sent, so skip it
                     #print(f"- skipping {file_path} ({filesize} bytes) - too large to send")
                     attachments.pop()
+                    skipped += 1
                     continue
 
             req = requests.Request(
@@ -105,6 +108,9 @@ def submit_data(xml_sub, _uuid, original_uuid, xml_value_media_map):
             files = {'xml_submission_file': file_tuple}  # submission XML is always re-sent in OpenRosa
             size = start_size
 
+    if (res.status_code // 100) == 2 and skipped:
+        return 202  # transfer_submissions() treats a 202 as a warning; use this to show some attachments have been skipped
+        
     return res.status_code
 
 
