@@ -1,15 +1,6 @@
 def left_join(left_list, right_list, on):
-    return [
-        {
-            **item_left,
-            **next(
-                (
-                    item_right
-                    for item_right in right_list
-                    if item_right[on] == item_left[on]
-                ),
-                {},
-            ),
-        }
-        for item_left in left_list
-    ]
+    # Indexed: a nested scan is quadratic, minutes for projects of tens of thousands
+    right = {}
+    for item in right_list:
+        right.setdefault(item[on], item)
+    return [{**item_left, **right.get(item_left[on], {})} for item_left in left_list]
