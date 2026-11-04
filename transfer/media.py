@@ -9,6 +9,7 @@ import sys
 import time
 
 from helpers.config import Config
+from utils.urls import rebase
 
 
 def del_media():
@@ -47,7 +48,7 @@ def download_all_media(data_url, stats):
         return stats
 
     data = data_res.json()
-    next_url = data['next']
+    next_url = rebase(data['next'], config['kf_url'])
     results = data['results']
 
     if not results:
@@ -68,7 +69,10 @@ def download_all_media(data_url, stats):
         for attachment in attachments:
             # Need to strip the query param otherwise it doesn't grab
             # the media content
-            download_url = attachment['download_url'].strip('?format=json')
+            download_url = rebase(
+                attachment['download_url'].removesuffix('?format=json'),
+                config['kf_url'],
+            )
             filename = get_filename(attachment['filename'])
 
             file_path = os.path.join(sub_dir, filename)

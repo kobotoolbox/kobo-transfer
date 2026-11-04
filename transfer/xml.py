@@ -129,7 +129,48 @@ def generate_new_instance_id() -> (str, str):
     return _uuid, f'uuid:{_uuid}'
 
 
-def transfer_submissions(all_submissions_xml, asset_data, quiet, regenerate):
+def get_text(e, path):
+    el = e.find(path)
+    return el.text.replace('uuid:', '') if el is not None and el.text else None
+
+
+def edit_decision(root, uuid_, deprecated, dest_roots, sent):
+    """
+    What to do with a `src` submission whose root (the first version's UUID) `dest`
+    already has under another UUID, i.e. it was edited on one side or both since it was
+    sent. `sent` is the UUID last sent for that root, if this machine sent it.
+
+    Returns ('new', None) when `dest` doesn't have it, ('edit', <dest UUID>) to send it as
+    an edit of what `dest` holds, ('kept', None) when only `dest` changed it (its version
+    stays), or ('conflict', None) when both did.
+    """
+    current = dest_roots.get(root)
+    if not current or current == uuid_:
+        return 'new', None
+    if sent == uuid_:
+        return 'kept', None  # nothing new here since it was sent: changed at `dest`
+    if current in (deprecated, sent):
+        return 'edit', current  # `dest` has the version that was edited here
+    if sent is None and deprecated is None:
+        return 'kept', None  # never edited here, so `dest` changed it
+    return 'conflict', None
+
+
+def transfer_submissions(
+    all_submissions_xml,
+    asset_data,
+    quiet,
+    regenerate,
+    dest_roots=None,
+    src_roots=None,
+    sent=None,
+):
+    """
+    `dest_roots` ({root UUID: UUID} at `dest`) turns on edits: a submission edited here
+    after it was sent goes as an edit of `dest`'s copy instead of being refused there as
+    a conflict. `src_roots` ({UUID: root UUID} here) says which submission each one is an
+    edit of; `sent` ({root UUID: UUID last sent}) is updated with what was sent.
+    """
     results = []
     for submission_xml in all_submissions_xml:
         # Use the same UUID so that duplicates are rejected. Handle the case when
@@ -151,6 +192,28 @@ def transfer_submissions(all_submissions_xml, asset_data, quiet, regenerate):
         else:
             _uuid = original_uuid
 
+        root = (src_roots or {}).get(_uuid) or get_text(submission_xml, 'meta/rootUuid') or _uuid
+        action, edit_of = 'new', None
+        if dest_roots is not None and not regenerate:
+            action, edit_of = edit_decision(
+                root,
+                _uuid,
+                get_text(submission_xml, 'meta/deprecatedID'),
+                dest_roots,
+                (sent or {}).get(root),
+            )
+        if action in ('kept', 'conflict'):
+            if action == 'conflict':
+                CONFLICTS.append(root)
+            if not quiet:
+                print(
+                    f'↔️  {_uuid} edited here and at dest since it was sent: not sent'
+                    if action == 'conflict'
+                    else f'➖ {_uuid} changed at dest since it was sent: dest\'s kept'
+                )
+            results.append(action)
+            continue
+
         new_attrib = {
             'id': asset_data['asset_uid'],
             'version': asset_data['version'],
@@ -164,7 +227,10 @@ def transfer_submissions(all_submissions_xml, asset_data, quiet, regenerate):
         update_element_value(
             submission_xml, 'formhub/uuid', asset_data['formhub_uuid']
         )
-        if remove_element(submission_xml, 'meta/deprecatedID'):
+        if edit_of:
+            update_element_value(submission_xml, 'meta/deprecatedID', f'uuid:{edit_of}')
+            messages.append('Edit of the copy at dest')
+        elif remove_element(submission_xml, 'meta/deprecatedID'):
             messages.append('Removed `deprecatedID` from submission XML')
 
         submission_values = get_all_values_from_xml(submission_xml)
@@ -176,7 +242,11 @@ def transfer_submissions(all_submissions_xml, asset_data, quiet, regenerate):
             original_uuid,
             xml_value_media_map,
         )
-        if result == 201:
+        if result in (201, 202) and sent is not None:  # before 'edited' replaces 201
+            sent[root] = _uuid
+        if result == 201 and edit_of:
+            result = 'edited'  # an edit of dest's copy, counted apart from new ones
+        if result in (201, 'edited'):
             messages.append(f'✅ {_uuid}')
         elif result == 202:
             messages.append(f'⚠️  {_uuid}')
@@ -241,9 +311,35 @@ def get_info_from_deployed_versions():
     return version, f'{count} ({format_date_string(date)})'
 
 
+# Root UUIDs edited on both sides this run, for --summary-file: a person decides
+CONFLICTS = []
+
+
+def get_stats(results):
+    stats = {
+        'total': len(results),
+        'sent': results.count(201),
+        'edits_sent': results.count('edited'),
+        'already_there': results.count(202),
+        'kept_at_dest': results.count('kept'),
+        'conflicts': results.count('conflict'),
+    }
+    stats['failed'] = stats['total'] - sum(v for k, v in stats.items() if k != 'total')
+    # What the failed ones got back, e.g. {'403': 2}: says what to fix
+    codes = {}
+    for r in results:
+        if r not in (201, 202, 'edited', 'kept', 'conflict'):
+            codes[str(r)] = codes.get(str(r), 0) + 1
+    stats['failed_codes'] = codes
+    stats['conflict_uuids'] = list(CONFLICTS)
+    return stats
+
+
 def print_stats(results):
-    total = len(results)
-    success = results.count(201)
-    skip = results.count(202)
-    fail = total - success - skip
-    print(f'🧮 {total}\t✅ {success}\t⚠️ {skip}\t❌ {fail}')
+    s = get_stats(results)
+    line = f"🧮 {s['total']}\t✅ {s['sent'] + s['edits_sent']}\t⚠️ {s['already_there']}\t❌ {s['failed']}"
+    if s['edits_sent']:
+        line += f"\t({s['edits_sent']} of them edits)"
+    if s['kept_at_dest'] or s['conflicts']:
+        line += f"\t➖ {s['kept_at_dest']} changed at dest\t↔️ {s['conflicts']} edited on both sides"
+    print(line)

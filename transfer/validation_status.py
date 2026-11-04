@@ -4,6 +4,7 @@ from collections import defaultdict
 
 from utils.joins import left_join
 from utils.iterators import chunker
+from utils.urls import rebase
 
 
 def get_params(loc, limit):
@@ -34,7 +35,7 @@ def get_results(url, params, headers):
 
         data = res.json()
         results += data['results']
-        next_ = data['next']
+        next_ = rebase(data['next'], url)
 
         if next_ is not None:
             get_uuids_rec(results, next_)
@@ -120,3 +121,4 @@ def sync_validation_statuses(config, chunk_size, limit):
         validation_data, config, stats, chunk_size
     )
     print_stats(res_stats)
+    return res_stats

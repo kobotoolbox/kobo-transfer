@@ -76,6 +76,23 @@ there is still data being collected at the `src`. Without using `--sync` in this
 case, if the submissions contain media attachments, they will be duplicated at
 the `dest` project and therefore consume unnecessary storage in your account.
 
+With `--sync`, a submission edited at `src` after it was transferred is sent as an
+edit of the copy at `dest` (the same submission, edited), rather than being refused
+there as a duplicate. If the copy at `dest` was edited there since it was sent, it is
+kept as it is; if it was edited on both sides, nothing is sent and the run counts it as
+edited on both sides, for a person to decide. What was last sent for each submission is
+kept in `.log/sent-<src>-<dest>.json` in the working directory.
+
+KoboToolbox returns absolute URLs (the next page of results, attachment downloads) built
+from the host name it was reached at. The script follows them through the `kf_url`
+in the config file, so it also works when a server is reached through a proxy or
+another name.
+
+`--summary-file <path>` writes what the run did as JSON: submissions sent, already
+there, kept at `dest`, edited on both sides and failed (with the HTTP codes the failed
+ones got), the validation statuses and analysis data synced, and an error if the run
+stopped. A script running the transfer unattended can read it instead of the output.
+
 Use the `--validation-status` option to sync the validation statuses from `src`
 submissions to the `dest`. If used in combination with the `--sync` option, it
 will first transfer missing submissions and then sync the statuses. If used
@@ -100,6 +117,17 @@ python3 run.py --sync --analysis-data
 # or
 python3 run.py --analysis-data
 ```
+
+The analysis features of the `src` project (transcription and translation languages,
+analysis questions) are added to those of the `dest` project; nothing already at `dest`
+is removed, so several `src` projects can be synced into one `dest`. If the `dest` server
+can import supplements (`POST .../data/<uuid>/supplement/import/`), every version is
+copied as it is, including results that are still pending review, and running again
+copies only what changed. Otherwise only reviewed results (accepted transcripts and
+translations, verified or manual analysis answers) are copied, as manual entries, and the
+run reports how many unreviewed results were left at `src`. With `--sync`, statuses and
+analysis data are synced even when there are no new submissions. The script exits with a
+non-zero status if any submission or analysis data failed to transfer.
 
 If submissions contain media attachments, all media will be downloaded to a
 local `attachments/` directory before the transfer between projects begin.
