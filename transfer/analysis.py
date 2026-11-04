@@ -188,7 +188,7 @@ def get_uuids_with_supplements(config_src, limit):
             # No `_supplementalDetails` key at all: the server didn't say, so look
             if sub.get('_supplementalDetails', True):
                 yield (sub.get('meta/rootUuid') or sub['_uuid']).replace('uuid:', '')
-        url, params = rebase(data['next'], config_src['kf_url']), None
+        url, params = rebase(data['next'], config_src), None
 
 
 def get_supplement(config_loc, uuid):

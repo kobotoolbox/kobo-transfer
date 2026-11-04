@@ -53,7 +53,7 @@ def get_roots(config_loc):
         data = res.json()
         for sub in data['results']:
             roots[sub['_uuid']] = (sub.get('meta/rootUuid') or sub['_uuid']).replace('uuid:', '')
-        url, params = rebase(data['next'], config_loc['kf_url']), None
+        url, params = rebase(data['next'], config_loc), None
     return roots
 
 
@@ -170,7 +170,7 @@ def main(
         submissions = parsed_xml.findall(f'results/')
         next_ = parsed_xml.find('next').text
         if next_ not in (None, 'None'):
-            next_ = rebase(next_, config_src['kf_url'])
+            next_ = rebase(next_, config_src)
         results = transfer_submissions(
             submissions,
             submission_edit_data,

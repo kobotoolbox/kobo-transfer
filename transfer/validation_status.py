@@ -26,7 +26,7 @@ def get_params(loc, limit):
     return params
 
 
-def get_results(url, params, headers):
+def get_results(url, params, headers, config_loc):
     def get_uuids_rec(results=[], url=None):
         if 'fields' not in url:
             res = requests.get(url=url, params=params, headers=headers)
@@ -35,7 +35,7 @@ def get_results(url, params, headers):
 
         data = res.json()
         results += data['results']
-        next_ = rebase(data['next'], url)
+        next_ = rebase(data['next'], config_loc)
 
         if next_ is not None:
             get_uuids_rec(results, next_)
@@ -93,6 +93,7 @@ def sync_validation_statuses(config, chunk_size, limit):
         url=config.src['data_url'],
         params=get_params(loc='src', limit=limit),
         headers=config.src['headers'],
+        config_loc=config.src,
     )
 
     src_data = []
@@ -108,6 +109,7 @@ def sync_validation_statuses(config, chunk_size, limit):
         url=config.dest['data_url'],
         params=get_params(loc='dest', limit=limit),
         headers=config.dest['headers'],
+        config_loc=config.dest,
     )
 
     joined = left_join(src_data, dest_data, '_uuid')

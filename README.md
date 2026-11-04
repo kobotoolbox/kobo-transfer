@@ -84,9 +84,11 @@ edited on both sides, for a person to decide. What was last sent for each submis
 kept in `.log/sent-<src>-<dest>.json` in the working directory.
 
 KoboToolbox returns absolute URLs (the next page of results, attachment downloads) built
-from the host name it was reached at. The script follows them through the `kf_url`
-in the config file, so it also works when a server is reached through a proxy or
-another name.
+from the host name it thinks it has. When a server is reached through a proxy, a port
+forward or another name, those URLs point elsewhere: a URL whose host starts like the
+config's `kf_url` or `kc_url` (`kf.`, `kc.`) but isn't it is followed through that
+address instead. URLs on the configured hosts, on other servers or on storage are used as
+the server sent them.
 
 `--summary-file <path>` writes what the run did as JSON: submissions sent, already
 there, kept at `dest`, edited on both sides and failed (with the HTTP codes the failed

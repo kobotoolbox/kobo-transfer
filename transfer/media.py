@@ -48,7 +48,7 @@ def download_all_media(data_url, stats):
         return stats
 
     data = data_res.json()
-    next_url = rebase(data['next'], config['kf_url'])
+    next_url = rebase(data['next'], config)
     results = data['results']
 
     if not results:
@@ -71,7 +71,7 @@ def download_all_media(data_url, stats):
             # the media content
             download_url = rebase(
                 attachment['download_url'].removesuffix('?format=json'),
-                config['kf_url'],
+                config,
             )
             filename = get_filename(attachment['filename'])
 
